@@ -5,6 +5,8 @@ import com.vyapaarmitra.api.common.PageResponse;
 import com.vyapaarmitra.api.reminder.ReminderDtos.CreateReminderRequest;
 import com.vyapaarmitra.api.reminder.ReminderDtos.ReminderResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -37,8 +39,8 @@ public class ReminderController {
     public PageResponse<ReminderResponse> list(@AuthenticationPrincipal AuthUser authUser,
                                                @RequestParam(required = false) UUID customerId,
                                                @RequestParam(required = false) UUID branchId,
-                                               @RequestParam(defaultValue = "0") int page,
-                                               @RequestParam(defaultValue = "20") int size) {
+                                               @RequestParam(defaultValue = "0") @Min(0) int page,
+                                               @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
         return reminderService.list(authUser, customerId, branchId, page, size);
     }
 }

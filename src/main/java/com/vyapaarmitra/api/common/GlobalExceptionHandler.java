@@ -5,11 +5,14 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @Slf4j
 @RestControllerAdvice
@@ -28,6 +31,33 @@ public class GlobalExceptionHandler {
         }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
             .body(errorBody("VALIDATION_ERROR", "Invalid request", fields));
+    }
+
+    /** Constraint violations on @RequestParam / @PathVariable method parameters. */
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    ResponseEntity<Map<String, Object>> handleParamValidation(HandlerMethodValidationException ex) {
+        Map<String, String> params = new LinkedHashMap<>();
+        ex.getParameterValidationResults().forEach(result ->
+            result.getResolvableErrors().forEach(error ->
+                params.putIfAbsent(result.getMethodParameter().getParameterName(),
+                    error.getDefaultMessage())));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(errorBody("VALIDATION_ERROR", "Invalid request parameters", params));
+    }
+
+    /** Malformed JSON body or wrong field types (e.g. text where a number is expected). */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ResponseEntity<Map<String, Object>> handleUnreadable(HttpMessageNotReadableException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(errorBody("MALFORMED_REQUEST", "Request body is missing or malformed", null));
+    }
+
+    /** Bad path/query parameter types (e.g. an invalid UUID). */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    ResponseEntity<Map<String, Object>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(errorBody("INVALID_PARAMETER",
+                "Invalid value for parameter '" + ex.getName() + "'", null));
     }
 
     @ExceptionHandler(AuthorizationDeniedException.class)

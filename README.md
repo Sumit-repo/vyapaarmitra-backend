@@ -11,10 +11,11 @@ mobile app (staff daily operations) and the Next.js web dashboard (owner analyti
 - **Supabase Postgres as plain storage only** — no Supabase auth, no RLS. All auth,
   branch/shop access control, ledger logic, trust scoring, reminders, and template
   rendering live in this service.
-- **Stateless & containerized** — safe to scale to N Cloud Run instances. No local
-  state; sessions are JWTs; migrations run via Flyway on startup.
-- **Cloud-portable** — no GCP SDK dependencies. Plain JDBC + env vars means the same
-  container runs on AWS App Runner / Azure Container Apps unchanged.
+- **Stateless & containerized** — safe to scale to N instances. No local state;
+  sessions are JWTs; migrations run via Flyway on startup.
+- **Cloud-portable** — no cloud-provider SDK dependencies. Plain JDBC + env vars
+  means the same container runs on Render, Cloud Run, AWS App Runner, or Azure
+  Container Apps unchanged. Currently deployed on **Render**.
 - **Single-shop today, multi-branch ready** — every table is scoped by
   `business_id` + `branch_id`; the pilot just has one of each.
 
@@ -71,20 +72,20 @@ On first boot with an empty database, `BootstrapRunner` seeds the business, main
 branch, owner account, and starter Hinglish reminder templates from `BOOTSTRAP_*`
 env vars.
 
-## Deploy to Cloud Run
+## Deploy to Render
 
-```bash
-gcloud run deploy vyapaarmitra-api \
-  --source . \
-  --region asia-south1 \
-  --allow-unauthenticated \
-  --set-env-vars "DATABASE_URL=...,DATABASE_USERNAME=...,CORS_ALLOWED_ORIGINS=https://your-dashboard.vercel.app,BOOTSTRAP_OWNER_EMAIL=...,BOOTSTRAP_OWNER_NAME=...,BOOTSTRAP_BUSINESS_NAME=..." \
-  --set-secrets "DATABASE_PASSWORD=vm-db-password:latest,JWT_SECRET=vm-jwt-secret:latest,BOOTSTRAP_OWNER_PASSWORD=vm-owner-password:latest"
-```
+`render.yaml` is a Render Blueprint: in the Render dashboard choose
+**New → Blueprint**, point it at this repo, and fill in the secret env vars when
+prompted (`DATABASE_*`, `CORS_ALLOWED_ORIGINS`, `BOOTSTRAP_*`). Render builds the
+`Dockerfile`, injects `PORT`, and uses `/healthz` as the health check.
 
-Store secrets in Secret Manager (`gcloud secrets create ...`), never in plain env vars
-or the repo. Keep `--max-instances` low (e.g. 3) so the summed Hikari pools
-(`DB_POOL_SIZE`, default 5) stay under Supabase's connection limit; use the Supabase
-connection pooler (port 6543) if you raise instance counts.
+Notes:
 
-Health checks: point Cloud Run's startup/liveness probes at `/healthz`.
+- **Free tier spins down after ~15 min idle** — first request then takes 30–60 s
+  (JVM cold start + Flyway). Fine for testing; use the Starter plan for the shop
+  pilot so the counter flow is never waiting on a cold start.
+- Region `singapore` is the closest to India.
+- Keep instance count × `DB_POOL_SIZE` (default 5) under Supabase's connection
+  limit; use the Supabase connection pooler (port 6543) if you scale out.
+- The container is provider-agnostic — moving to Cloud Run/AWS later is just
+  pointing a different platform at the same Dockerfile and env vars.

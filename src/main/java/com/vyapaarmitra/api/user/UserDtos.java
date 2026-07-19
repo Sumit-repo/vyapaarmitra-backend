@@ -21,14 +21,15 @@ public final class UserDtos {
         }
     }
 
-    public record CreateUserRequest(@NotBlank @Email String email,
-                                    @NotBlank @Size(min = 8) String password,
-                                    @NotBlank String fullName,
+    public record CreateUserRequest(@NotBlank @Email @Size(max = 254) String email,
+                                    @NotBlank @Size(min = 8, max = 72) String password,
+                                    @NotBlank @Size(max = 100) String fullName,
                                     @NotNull Role role,
                                     Set<UUID> branchIds) {
     }
 
-    public record UpdateUserRequest(String fullName, Role role, Boolean active,
-                                    Set<UUID> branchIds, @Size(min = 8) String password) {
+    public record UpdateUserRequest(@Size(max = 100) String fullName, Role role, Boolean active,
+                                    Set<UUID> branchIds,
+                                    @Size(min = 8, max = 72) String password) {
     }
 }

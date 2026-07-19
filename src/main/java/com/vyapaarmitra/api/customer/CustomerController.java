@@ -7,6 +7,9 @@ import com.vyapaarmitra.api.customer.CustomerDtos.CustomerListItem;
 import com.vyapaarmitra.api.customer.CustomerDtos.CustomerResponse;
 import com.vyapaarmitra.api.customer.CustomerDtos.UpdateCustomerRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import java.util.UUID;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,9 +34,9 @@ public class CustomerController {
     @GetMapping
     public PageResponse<CustomerListItem> list(@AuthenticationPrincipal AuthUser authUser,
                                                @RequestParam(required = false) UUID branchId,
-                                               @RequestParam(required = false) String q,
-                                               @RequestParam(defaultValue = "0") int page,
-                                               @RequestParam(defaultValue = "20") int size) {
+                                               @RequestParam(required = false) @Size(max = 100) String q,
+                                               @RequestParam(defaultValue = "0") @Min(0) int page,
+                                               @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
         return customerService.list(authUser, branchId, q, page, size);
     }
 

@@ -2,6 +2,8 @@ package com.vyapaarmitra.api.customer;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -34,11 +36,22 @@ public final class CustomerDtos {
         }
     }
 
-    public record CreateCustomerRequest(@NotNull UUID branchId, @NotBlank String name,
-                                        String phone, List<String> tags, String notes) {
+    private static final String PHONE_PATTERN = "^\\+?[0-9][0-9\\s-]{5,14}$";
+    private static final String PHONE_MESSAGE = "must be a valid phone number";
+
+    public record CreateCustomerRequest(@NotNull UUID branchId,
+                                        @NotBlank @Size(max = 120) String name,
+                                        @Pattern(regexp = PHONE_PATTERN, message = PHONE_MESSAGE)
+                                        String phone,
+                                        @Size(max = 10) List<@NotBlank @Size(max = 30) String> tags,
+                                        @Size(max = 1000) String notes) {
     }
 
-    public record UpdateCustomerRequest(String name, String phone, List<String> tags,
-                                        String notes, Boolean active) {
+    public record UpdateCustomerRequest(@Size(max = 120) String name,
+                                        @Pattern(regexp = PHONE_PATTERN, message = PHONE_MESSAGE)
+                                        String phone,
+                                        @Size(max = 10) List<@NotBlank @Size(max = 30) String> tags,
+                                        @Size(max = 1000) String notes,
+                                        Boolean active) {
     }
 }

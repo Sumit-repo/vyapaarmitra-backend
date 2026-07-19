@@ -1,6 +1,8 @@
 package com.vyapaarmitra.api.reminder;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -12,10 +14,12 @@ public final class ReminderDtos {
 
     public record CreateReminderRequest(@NotNull UUID customerId,
                                         UUID templateId,
+                                        @Pattern(regexp = "SMS|WHATSAPP|CALL",
+                                            message = "must be SMS, WHATSAPP or CALL")
                                         String channel,
                                         @NotNull ReminderOutcome outcome,
                                         LocalDate promisedDate,
-                                        String note) {
+                                        @Size(max = 1000) String note) {
     }
 
     public record ReminderResponse(UUID id, UUID customerId, UUID templateId, String channel,

@@ -12,7 +12,7 @@ WORKDIR /app
 RUN addgroup -S app && adduser -S app -G app
 COPY --from=build /app/target/*.jar app.jar
 USER app
-# Cloud Run injects PORT; the app reads it via server.port=${PORT:8080}
+# Render/Cloud Run inject PORT; the app reads it via server.port=${PORT:8080}
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0"
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

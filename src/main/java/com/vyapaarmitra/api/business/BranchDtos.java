@@ -1,6 +1,7 @@
 package com.vyapaarmitra.api.business;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.util.UUID;
 
 public final class BranchDtos {
@@ -16,9 +17,11 @@ public final class BranchDtos {
         }
     }
 
-    public record CreateBranchRequest(@NotBlank String name, String address) {
+    public record CreateBranchRequest(@NotBlank @Size(max = 100) String name,
+                                      @Size(max = 300) String address) {
     }
 
-    public record UpdateBranchRequest(String name, String address, Boolean active) {
+    public record UpdateBranchRequest(@Size(max = 100) String name,
+                                      @Size(max = 300) String address, Boolean active) {
     }
 }

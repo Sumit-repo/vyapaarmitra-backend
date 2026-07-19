@@ -1,8 +1,10 @@
 package com.vyapaarmitra.api.ledger;
 
 import com.vyapaarmitra.api.customer.CustomerDtos.CustomerResponse;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -15,9 +17,10 @@ public final class LedgerDtos {
 
     public record CreateEntryRequest(@NotNull UUID customerId,
                                      @NotNull EntryType entryType,
-                                     @NotNull @Positive BigDecimal amount,
-                                     String method,
-                                     String note,
+                                     @NotNull @Positive @Digits(integer = 12, fraction = 2)
+                                     BigDecimal amount,
+                                     @Size(max = 20) String method,
+                                     @Size(max = 500) String note,
                                      LocalDate dueDate) {
     }
 

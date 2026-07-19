@@ -6,6 +6,8 @@ import com.vyapaarmitra.api.ledger.LedgerDtos.CreateEntryRequest;
 import com.vyapaarmitra.api.ledger.LedgerDtos.EntryCreatedResponse;
 import com.vyapaarmitra.api.ledger.LedgerDtos.EntryResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -38,8 +40,8 @@ public class LedgerController {
     @GetMapping("/customers/{customerId}/ledger")
     public PageResponse<EntryResponse> ledger(@AuthenticationPrincipal AuthUser authUser,
                                               @PathVariable UUID customerId,
-                                              @RequestParam(defaultValue = "0") int page,
-                                              @RequestParam(defaultValue = "30") int size) {
+                                              @RequestParam(defaultValue = "0") @Min(0) int page,
+                                              @RequestParam(defaultValue = "30") @Min(1) @Max(100) int size) {
         return ledgerService.ledger(authUser, customerId, page, size);
     }
 }

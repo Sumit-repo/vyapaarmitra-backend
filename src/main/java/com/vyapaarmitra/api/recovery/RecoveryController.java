@@ -3,6 +3,8 @@ package com.vyapaarmitra.api.recovery;
 import com.vyapaarmitra.api.auth.AuthUser;
 import com.vyapaarmitra.api.common.PageResponse;
 import com.vyapaarmitra.api.recovery.RecoveryService.RecoveryItem;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import java.util.UUID;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,8 +26,8 @@ public class RecoveryController {
     @GetMapping("/today")
     public PageResponse<RecoveryItem> today(@AuthenticationPrincipal AuthUser authUser,
                                             @RequestParam(required = false) UUID branchId,
-                                            @RequestParam(defaultValue = "0") int page,
-                                            @RequestParam(defaultValue = "20") int size) {
+                                            @RequestParam(defaultValue = "0") @Min(0) int page,
+                                            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
         return recoveryService.today(authUser, branchId, page, size);
     }
 }
