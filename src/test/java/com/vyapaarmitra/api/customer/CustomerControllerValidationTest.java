@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.vyapaarmitra.api.auth.JwtService;
+import com.vyapaarmitra.api.reminder.ReminderSettingsService;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +25,9 @@ class CustomerControllerValidationTest {
 
     @MockitoBean
     private CustomerService customerService;
+
+    @MockitoBean
+    private ReminderSettingsService reminderSettingsService;
 
     @MockitoBean
     private JwtService jwtService;

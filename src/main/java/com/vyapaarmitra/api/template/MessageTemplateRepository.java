@@ -18,4 +18,8 @@ public interface MessageTemplateRepository extends JpaRepository<MessageTemplate
                                         @Param("branchId") UUID branchId);
 
     List<MessageTemplate> findByBusinessIdOrderByCategoryAscNameAsc(UUID businessId);
+
+    /** First enabled template matching a category name (case-insensitive). Used as reminder fallback. */
+    java.util.Optional<MessageTemplate> findFirstByBusinessIdAndCategoryIgnoreCaseAndEnabledTrue(
+        UUID businessId, String category);
 }
