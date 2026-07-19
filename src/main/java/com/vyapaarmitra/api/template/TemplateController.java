@@ -1,0 +1,63 @@
+package com.vyapaarmitra.api.template;
+
+import com.vyapaarmitra.api.auth.AuthUser;
+import com.vyapaarmitra.api.template.TemplateDtos.CreateTemplateRequest;
+import com.vyapaarmitra.api.template.TemplateDtos.RenderRequest;
+import com.vyapaarmitra.api.template.TemplateDtos.RenderResponse;
+import com.vyapaarmitra.api.template.TemplateDtos.TemplateResponse;
+import com.vyapaarmitra.api.template.TemplateDtos.UpdateTemplateRequest;
+import jakarta.validation.Valid;
+import java.util.List;
+import java.util.UUID;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/v1/templates")
+public class TemplateController {
+
+    private final TemplateService templateService;
+
+    public TemplateController(TemplateService templateService) {
+        this.templateService = templateService;
+    }
+
+    @GetMapping
+    public List<TemplateResponse> list(@AuthenticationPrincipal AuthUser authUser,
+                                       @RequestParam(required = false) UUID branchId) {
+        return templateService.list(authUser, branchId);
+    }
+
+    @PostMapping
+    @PreAuthorize("hasAnyRole('OWNER', 'BRANCH_MANAGER')")
+    @ResponseStatus(HttpStatus.CREATED)
+    public TemplateResponse create(@AuthenticationPrincipal AuthUser authUser,
+                                   @Valid @RequestBody CreateTemplateRequest request) {
+        return templateService.create(authUser, request);
+    }
+
+    @PatchMapping("/{id}")
+    @PreAuthorize("hasAnyRole('OWNER', 'BRANCH_MANAGER')")
+    public TemplateResponse update(@AuthenticationPrincipal AuthUser authUser,
+                                   @PathVariable UUID id,
+                                   @RequestBody UpdateTemplateRequest request) {
+        return templateService.update(authUser, id, request);
+    }
+
+    @PostMapping("/{id}/render")
+    public RenderResponse render(@AuthenticationPrincipal AuthUser authUser,
+                                 @PathVariable UUID id,
+                                 @Valid @RequestBody RenderRequest request) {
+        return templateService.render(authUser, id, request.customerId());
+    }
+}
