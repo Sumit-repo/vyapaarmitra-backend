@@ -5,7 +5,7 @@ services:
     name: vyapaarmitra-api
     runtime: docker
     region: singapore # closest to India
-    plan: starter # free tier spins down on idle; starter keeps the API warm
+    plan: free # spins down after ~15 min idle; upgrade to starter for the shop pilot
     healthCheckPath: /healthz
     envVars:
       - key: DATABASE_URL
