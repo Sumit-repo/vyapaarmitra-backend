@@ -43,6 +43,8 @@ public class Customer {
 
     private String phone;
 
+    private String address;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private List<String> tags = new ArrayList<>();

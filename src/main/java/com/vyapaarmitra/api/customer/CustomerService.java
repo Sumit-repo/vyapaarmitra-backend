@@ -55,6 +55,7 @@ public class CustomerService {
         customer.setBranchId(request.branchId());
         customer.setName(request.name().trim());
         customer.setPhone(normalizePhone(request.phone()));
+        customer.setAddress(request.address());
         customer.setTags(request.tags() == null ? new ArrayList<>() : new ArrayList<>(request.tags()));
         customer.setNotes(request.notes());
         return CustomerResponse.from(customerRepository.save(customer));
@@ -69,6 +70,9 @@ public class CustomerService {
         }
         if (request.phone() != null) {
             customer.setPhone(normalizePhone(request.phone()));
+        }
+        if (request.address() != null) {
+            customer.setAddress(request.address());
         }
         if (request.tags() != null) {
             customer.setTags(new ArrayList<>(request.tags()));

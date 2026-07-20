@@ -21,21 +21,24 @@ public final class SupplierDtos {
     private static final String PHONE_PATTERN = "^\\+?[0-9][0-9\\s-]{5,14}$";
     private static final String PHONE_MESSAGE = "must be a valid phone number";
 
-    public record SupplierResponse(UUID id, UUID branchId, String name, String phone,
+    public record SupplierResponse(UUID id, UUID branchId, String name, String phone, String address,
                                    List<String> tags, String notes, BigDecimal currentBalance,
-                                   LocalDate oldestDueDate, boolean active) {
+                                   LocalDate oldestDueDate, Instant lastActivityAt, boolean active) {
 
         public static SupplierResponse from(Supplier s) {
             return new SupplierResponse(s.getId(), s.getBranchId(), s.getName(), s.getPhone(),
-                s.getTags(), s.getNotes(), s.getCurrentBalance(), s.getOldestDueDate(), s.isActive());
+                s.getAddress(), s.getTags(), s.getNotes(), s.getCurrentBalance(), s.getOldestDueDate(),
+                s.getUpdatedAt(), s.isActive());
         }
     }
 
     /** Compact list shape — small payloads for slow shop connections. */
-    public record SupplierListItem(UUID id, String name, String phone, BigDecimal currentBalance) {
+    public record SupplierListItem(UUID id, String name, String phone, String address,
+                                   Instant lastActivityAt, BigDecimal currentBalance) {
 
         public static SupplierListItem from(Supplier s) {
-            return new SupplierListItem(s.getId(), s.getName(), s.getPhone(), s.getCurrentBalance());
+            return new SupplierListItem(s.getId(), s.getName(), s.getPhone(), s.getAddress(),
+                s.getUpdatedAt(), s.getCurrentBalance());
         }
     }
 
@@ -43,6 +46,7 @@ public final class SupplierDtos {
                                         @NotBlank @Size(max = 120) String name,
                                         @Pattern(regexp = PHONE_PATTERN, message = PHONE_MESSAGE)
                                         String phone,
+                                        @Size(max = 300) String address,
                                         @Size(max = 10) List<@NotBlank @Size(max = 30) String> tags,
                                         @Size(max = 1000) String notes) {
     }
@@ -50,6 +54,7 @@ public final class SupplierDtos {
     public record UpdateSupplierRequest(@Size(max = 120) String name,
                                         @Pattern(regexp = PHONE_PATTERN, message = PHONE_MESSAGE)
                                         String phone,
+                                        @Size(max = 300) String address,
                                         @Size(max = 10) List<@NotBlank @Size(max = 30) String> tags,
                                         @Size(max = 1000) String notes,
                                         Boolean active) {

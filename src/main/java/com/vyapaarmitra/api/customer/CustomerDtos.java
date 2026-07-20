@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -14,25 +15,26 @@ public final class CustomerDtos {
     private CustomerDtos() {
     }
 
-    public record CustomerResponse(UUID id, UUID branchId, String name, String phone,
+    public record CustomerResponse(UUID id, UUID branchId, String name, String phone, String address,
                                    List<String> tags, String notes, int trustScore,
                                    TrustBucket trustBucket, BigDecimal currentBalance,
-                                   LocalDate oldestDueDate, boolean active) {
+                                   LocalDate oldestDueDate, Instant lastActivityAt, boolean active) {
 
         public static CustomerResponse from(Customer c) {
             return new CustomerResponse(c.getId(), c.getBranchId(), c.getName(), c.getPhone(),
-                c.getTags(), c.getNotes(), c.getTrustScore(), c.getTrustBucket(),
-                c.getCurrentBalance(), c.getOldestDueDate(), c.isActive());
+                c.getAddress(), c.getTags(), c.getNotes(), c.getTrustScore(), c.getTrustBucket(),
+                c.getCurrentBalance(), c.getOldestDueDate(), c.getUpdatedAt(), c.isActive());
         }
     }
 
-    /** Compact shape for mobile lists — smaller payloads for slow shop connections. */
-    public record CustomerListItem(UUID id, String name, String phone, int trustScore,
+    /** Compact shape for directory lists — smaller payloads for slow shop connections. */
+    public record CustomerListItem(UUID id, String name, String phone, String address,
+                                   Instant lastActivityAt, int trustScore,
                                    TrustBucket trustBucket, BigDecimal currentBalance) {
 
         public static CustomerListItem from(Customer c) {
-            return new CustomerListItem(c.getId(), c.getName(), c.getPhone(), c.getTrustScore(),
-                c.getTrustBucket(), c.getCurrentBalance());
+            return new CustomerListItem(c.getId(), c.getName(), c.getPhone(), c.getAddress(),
+                c.getUpdatedAt(), c.getTrustScore(), c.getTrustBucket(), c.getCurrentBalance());
         }
     }
 
@@ -43,6 +45,7 @@ public final class CustomerDtos {
                                         @NotBlank @Size(max = 120) String name,
                                         @Pattern(regexp = PHONE_PATTERN, message = PHONE_MESSAGE)
                                         String phone,
+                                        @Size(max = 300) String address,
                                         @Size(max = 10) List<@NotBlank @Size(max = 30) String> tags,
                                         @Size(max = 1000) String notes) {
     }
@@ -50,6 +53,7 @@ public final class CustomerDtos {
     public record UpdateCustomerRequest(@Size(max = 120) String name,
                                         @Pattern(regexp = PHONE_PATTERN, message = PHONE_MESSAGE)
                                         String phone,
+                                        @Size(max = 300) String address,
                                         @Size(max = 10) List<@NotBlank @Size(max = 30) String> tags,
                                         @Size(max = 1000) String notes,
                                         Boolean active) {

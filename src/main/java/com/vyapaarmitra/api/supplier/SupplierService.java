@@ -72,6 +72,7 @@ public class SupplierService {
         supplier.setBranchId(request.branchId());
         supplier.setName(request.name().trim());
         supplier.setPhone(normalizePhone(request.phone()));
+        supplier.setAddress(request.address());
         supplier.setTags(request.tags() == null ? new ArrayList<>() : new ArrayList<>(request.tags()));
         supplier.setNotes(request.notes());
         return SupplierResponse.from(supplierRepository.save(supplier));
@@ -85,6 +86,9 @@ public class SupplierService {
         }
         if (request.phone() != null) {
             supplier.setPhone(normalizePhone(request.phone()));
+        }
+        if (request.address() != null) {
+            supplier.setAddress(request.address());
         }
         if (request.tags() != null) {
             supplier.setTags(new ArrayList<>(request.tags()));
