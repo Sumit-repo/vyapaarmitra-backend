@@ -10,6 +10,7 @@ import com.vyapaarmitra.api.ledger.LedgerEntryRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -43,6 +44,27 @@ public class DashboardService {
                                   long todayEntries, BigDecimal totalOutstanding,
                                   BigDecimal totalOverdue, long overdueCustomers,
                                   List<TopDebtor> topDebtors) {
+    }
+
+    /** One day of ledger activity for the collections trend chart. */
+    public record CollectionPoint(LocalDate date, BigDecimal collected, BigDecimal given) {
+    }
+
+    @Transactional(readOnly = true)
+    public List<CollectionPoint> collections(AuthUser authUser, UUID branchId, int days) {
+        Set<UUID> branchIds = branchAccessService.scope(authUser, branchId);
+        LocalDate today = appTime.today();
+        int n = Math.min(Math.max(days, 1), 90);
+        List<CollectionPoint> points = new ArrayList<>(n);
+        for (int i = n - 1; i >= 0; i--) {
+            LocalDate day = today.minusDays(i);
+            Instant from = appTime.startOfDay(day);
+            Instant to = appTime.startOfDay(day.plusDays(1));
+            BigDecimal collected = ledgerEntryRepository.sumByTypeBetween(branchIds, EntryType.PAYMENT, from, to);
+            BigDecimal given = ledgerEntryRepository.sumByTypeBetween(branchIds, EntryType.CREDIT, from, to);
+            points.add(new CollectionPoint(day, collected, given));
+        }
+        return points;
     }
 
     @Transactional(readOnly = true)
