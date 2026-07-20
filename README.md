@@ -21,15 +21,20 @@ mobile app (staff daily operations) and the Next.js web dashboard (owner analyti
 
 ## Domain model
 
-`businesses → branches → customers → ledger_entries` with `users` (+
-`user_branch_access`), `message_templates`, and `reminder_logs`. Roles: `OWNER`
-(all branches), `BRANCH_MANAGER`, `STAFF` (assigned branches only). Branch-level
-authorization is centralized in `BranchAccessService` — every branch-scoped call
-goes through it.
+`businesses → branches → customers → ledger_entries` and the mirror
+`suppliers → supplier_ledger_entries`, with `users` (+ `user_branch_access`),
+`message_templates`, `reminder_logs`, and `customer_reminder_settings`. Roles:
+`OWNER` (all branches), `BRANCH_MANAGER`, `STAFF` (assigned branches only).
+Branch-level authorization is centralized in `BranchAccessService` — every
+branch-scoped call goes through it.
 
 Customer state (`current_balance`, `oldest_due_date`, `trust_score`) is denormalized
 and recomputed on every ledger entry. Payments allocate FIFO against credits
 (`LedgerMath`); the trust score formula is documented in `TrustScoreService`.
+**Suppliers** reuse the same ledger math and access control but have **no trust
+score**; `current_balance > 0` means the business owes the supplier (payable).
+Customers and suppliers both carry an optional `address` and expose
+`lastActivityAt` (= `updated_at`) for the directory tables.
 
 ## Auth
 
@@ -47,13 +52,19 @@ GET   /api/v1/me
 GET/POST/PATCH /api/v1/branches            (create/update: OWNER)
 GET/POST/PATCH /api/v1/users               (OWNER only)
 GET/POST/PATCH /api/v1/customers           (?branchId&q&page&size)
+GET   /api/v1/customers/{id}
 GET   /api/v1/customers/{id}/ledger
 POST  /api/v1/entries                      (CREDIT/PAYMENT; returns updated customer)
+GET/POST/PATCH /api/v1/suppliers           (?branchId&q&page&size)
+GET   /api/v1/suppliers/{id}
+GET   /api/v1/suppliers/{id}/ledger
+POST  /api/v1/supplier-entries             (CREDIT/PAYMENT; returns updated supplier)
 GET   /api/v1/recovery/today               (?branchId — "who to contact today")
 GET/POST/PATCH /api/v1/templates           (create/update: OWNER/BRANCH_MANAGER)
 POST  /api/v1/templates/{id}/render        ({{customer_name}}, {{amount_due}}, …)
 GET/POST /api/v1/reminders                 (outcome log: sent/promised/paid)
 GET   /api/v1/dashboard/summary            (?branchId or consolidated)
+GET   /api/v1/dashboard/collections        (?branchId&days — daily collected/given trend)
 GET   /healthz                             (liveness; /actuator/health = readiness)
 ```
 
