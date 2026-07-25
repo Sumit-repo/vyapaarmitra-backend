@@ -22,4 +22,10 @@ public interface SupplierRepository extends JpaRepository<Supplier, UUID> {
         """)
     Page<Supplier> search(@Param("branchIds") Collection<UUID> branchIds, @Param("q") String q,
                           Pageable pageable);
+
+    @Query("""
+        select coalesce(sum(s.currentBalance), 0) from Supplier s
+        where s.branchId in :branchIds and s.active = true and s.currentBalance > 0
+        """)
+    java.math.BigDecimal totalPayable(@Param("branchIds") Collection<UUID> branchIds);
 }

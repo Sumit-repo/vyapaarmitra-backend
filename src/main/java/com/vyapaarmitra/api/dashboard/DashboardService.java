@@ -7,6 +7,7 @@ import com.vyapaarmitra.api.customer.CustomerRepository;
 import com.vyapaarmitra.api.customer.TrustBucket;
 import com.vyapaarmitra.api.ledger.EntryType;
 import com.vyapaarmitra.api.ledger.LedgerEntryRepository;
+import com.vyapaarmitra.api.supplier.SupplierRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -22,15 +23,18 @@ import org.springframework.transaction.annotation.Transactional;
 public class DashboardService {
 
     private final CustomerRepository customerRepository;
+    private final SupplierRepository supplierRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
     private final BranchAccessService branchAccessService;
     private final AppTime appTime;
 
     public DashboardService(CustomerRepository customerRepository,
+                            SupplierRepository supplierRepository,
                             LedgerEntryRepository ledgerEntryRepository,
                             BranchAccessService branchAccessService,
                             AppTime appTime) {
         this.customerRepository = customerRepository;
+        this.supplierRepository = supplierRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.branchAccessService = branchAccessService;
         this.appTime = appTime;
@@ -43,6 +47,7 @@ public class DashboardService {
     public record SummaryResponse(BigDecimal todayCredit, BigDecimal todayPayment,
                                   long todayEntries, BigDecimal totalOutstanding,
                                   BigDecimal totalOverdue, long overdueCustomers,
+                                  BigDecimal totalPayable,
                                   List<TopDebtor> topDebtors) {
     }
 
@@ -87,6 +92,7 @@ public class DashboardService {
             customerRepository.totalOutstanding(branchIds),
             customerRepository.totalOverdue(branchIds, today),
             customerRepository.countOverdue(branchIds, today),
+            supplierRepository.totalPayable(branchIds),
             topDebtors);
     }
 }
