@@ -13,6 +13,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -24,10 +25,17 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http, JwtAuthFilter jwtAuthFilter,
-                                    CorsConfigurationSource corsConfigurationSource) throws Exception {
+                                    CorsConfigurationSource corsConfigurationSource,
+                                    RateLimitProperties rateLimitProperties) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
+            .headers(headers -> headers
+                // Spring defaults already set nosniff + X-Frame-Options: DENY; add HSTS + referrer policy.
+                .httpStrictTransportSecurity(hsts -> hsts
+                    .includeSubDomains(true)
+                    .maxAgeInSeconds(31_536_000))
+                .referrerPolicy(rp -> rp.policy(ReferrerPolicy.NO_REFERRER)))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/healthz", "/actuator/health/**", "/api/v1/auth/**").permitAll()
@@ -38,6 +46,8 @@ public class SecurityConfig {
                 response.getWriter().write(
                     "{\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication required\"}}");
             }))
+            // Rate-limit auth endpoints before authentication work happens.
+            .addFilterBefore(new RateLimitFilter(rateLimitProperties), UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

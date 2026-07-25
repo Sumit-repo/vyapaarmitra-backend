@@ -1,7 +1,9 @@
 package com.vyapaarmitra.api.auth;
 
 import com.vyapaarmitra.api.auth.AuthDtos.MeResponse;
+import com.vyapaarmitra.api.auth.AuthDtos.RegisterRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.TokenResponse;
+import com.vyapaarmitra.api.business.BusinessProvisioningService;
 import com.vyapaarmitra.api.common.ApiException;
 import com.vyapaarmitra.api.user.User;
 import com.vyapaarmitra.api.user.UserRepository;
@@ -19,12 +21,29 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final BusinessProvisioningService provisioningService;
 
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder,
-                       JwtService jwtService) {
+                       JwtService jwtService, BusinessProvisioningService provisioningService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.provisioningService = provisioningService;
+    }
+
+    /** Self-serve signup: stands up a new business and signs the owner straight in. */
+    @Transactional
+    public TokenResponse register(RegisterRequest request) {
+        String email = request.email().trim().toLowerCase();
+        if (userRepository.findByEmailIgnoreCase(email).isPresent()) {
+            throw ApiException.badRequest("EMAIL_TAKEN", "An account with this email already exists.");
+        }
+        String branchName = request.branchName() == null || request.branchName().isBlank()
+            ? "Main Branch"
+            : request.branchName().trim();
+        User owner = provisioningService.provision(request.businessName().trim(), branchName,
+            request.ownerName().trim(), email, request.password());
+        return tokenResponse(owner);
     }
 
     @Transactional(readOnly = true)

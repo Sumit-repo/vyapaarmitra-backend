@@ -62,6 +62,35 @@ class AuthControllerValidationTest {
     }
 
     @Test
+    void registerRejectsShortPassword() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"businessName\":\"Sharma Store\",\"ownerName\":\"Ramesh\","
+                    + "\"email\":\"owner@shop.com\",\"password\":\"short\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.details.password").exists());
+    }
+
+    @Test
+    void registerRejectsBlankBusinessName() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"businessName\":\"\",\"ownerName\":\"Ramesh\","
+                    + "\"email\":\"owner@shop.com\",\"password\":\"secret123\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.details.businessName").exists());
+    }
+
+    @Test
+    void registerAcceptsValidRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"businessName\":\"Sharma Store\",\"ownerName\":\"Ramesh\","
+                    + "\"email\":\"owner@shop.com\",\"password\":\"secret123\"}"))
+            .andExpect(status().isCreated());
+    }
+
+    @Test
     void refreshRejectsMissingToken() throws Exception {
         mockMvc.perform(post("/api/v1/auth/refresh")
                 .contentType(MediaType.APPLICATION_JSON)

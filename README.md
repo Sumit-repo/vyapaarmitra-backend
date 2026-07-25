@@ -36,6 +36,15 @@ score**; `current_balance > 0` means the business owes the supplier (payable).
 Customers and suppliers both carry an optional `address` and expose
 `lastActivityAt` (= `updated_at`) for the directory tables.
 
+**Invoices** (V5) add a lightweight bill generator: `KACCHA` (informal estimate /
+cash memo, no GST) and `PAKKA` (GST tax invoice with per-item HSN + tax slab, and a
+CGST/SGST or IGST split). Totals are computed server-side in `InvoiceMath` (never
+trusted from the client). Line items are stored inline as `jsonb`. A credit or
+partial bill linked to a customer posts its balance to that customer's khata as a
+`CREDIT` ledger entry (`ledger_entry_id`), so billing feeds the ledger; `mark-paid`
+settles it with a matching `PAYMENT`. Full GST filing / returns / e-invoicing and
+accounting remain out of scope.
+
 ## Auth
 
 Custom JWT (HS256). `POST /api/v1/auth/login` returns a short-lived access token and
@@ -59,11 +68,15 @@ GET/POST/PATCH /api/v1/suppliers           (?branchId&q&page&size)
 GET   /api/v1/suppliers/{id}
 GET   /api/v1/suppliers/{id}/ledger
 POST  /api/v1/supplier-entries             (CREDIT/PAYMENT; returns updated supplier)
+GET/POST /api/v1/invoices                  (?branchId&type&q&page&size; type=KACCHA|PAKKA)
+GET   /api/v1/invoices/{id}
+POST  /api/v1/invoices                     (kaccha/pakka bill; credit balance → customer khata)
+POST  /api/v1/invoices/{id}/mark-paid      (settles linked khata balance, marks PAID)
 GET   /api/v1/recovery/today               (?branchId — "who to contact today")
 GET/POST/PATCH /api/v1/templates           (create/update: OWNER/BRANCH_MANAGER)
 POST  /api/v1/templates/{id}/render        ({{customer_name}}, {{amount_due}}, …)
 GET/POST /api/v1/reminders                 (outcome log: sent/promised/paid)
-GET   /api/v1/dashboard/summary            (?branchId or consolidated)
+GET   /api/v1/dashboard/summary            (?branchId or consolidated; incl. totalPayable)
 GET   /api/v1/dashboard/collections        (?branchId&days — daily collected/given trend)
 GET   /healthz                             (liveness; /actuator/health = readiness)
 ```

@@ -3,13 +3,16 @@ package com.vyapaarmitra.api.auth;
 import com.vyapaarmitra.api.auth.AuthDtos.LoginRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.MeResponse;
 import com.vyapaarmitra.api.auth.AuthDtos.RefreshRequest;
+import com.vyapaarmitra.api.auth.AuthDtos.RegisterRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.TokenResponse;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -20,6 +23,12 @@ public class AuthController {
 
     public AuthController(AuthService authService) {
         this.authService = authService;
+    }
+
+    @PostMapping("/auth/register")
+    @ResponseStatus(HttpStatus.CREATED)
+    public TokenResponse register(@Valid @RequestBody RegisterRequest request) {
+        return authService.register(request);
     }
 
     @PostMapping("/auth/login")

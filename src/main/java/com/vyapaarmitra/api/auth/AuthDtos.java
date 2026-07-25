@@ -3,6 +3,7 @@ package com.vyapaarmitra.api.auth;
 import com.vyapaarmitra.api.user.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.util.Set;
 import java.util.UUID;
 
@@ -12,6 +13,13 @@ public final class AuthDtos {
     }
 
     public record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {
+    }
+
+    public record RegisterRequest(@NotBlank @Size(max = 120) String businessName,
+                                  @Size(max = 120) String branchName,
+                                  @NotBlank @Size(max = 120) String ownerName,
+                                  @NotBlank @Email @Size(max = 190) String email,
+                                  @NotBlank @Size(min = 8, max = 100) String password) {
     }
 
     public record RefreshRequest(@NotBlank String refreshToken) {
