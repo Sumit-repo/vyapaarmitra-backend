@@ -17,6 +17,10 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, UUID> 
 
     List<LedgerEntry> findByCustomerIdOrderByEntryAtAsc(UUID customerId);
 
+    /** Shop-wide statement feed: all entries for the scoped branches since `from`, oldest first. */
+    List<LedgerEntry> findByBranchIdInAndEntryAtGreaterThanEqualOrderByEntryAtAsc(
+        Collection<UUID> branchIds, Instant from);
+
     @Query("""
         select coalesce(sum(e.amount), 0) from LedgerEntry e
         where e.branchId in :branchIds and e.entryType = :type
