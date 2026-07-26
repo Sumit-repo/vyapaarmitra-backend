@@ -58,6 +58,12 @@
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-database-postgresql</artifactId>
 		</dependency>
+		<!-- Explicit compile-scope Jackson: parse Google tokeninfo + build Resend JSON
+		     (webmvc pulls it transitively at runtime only). Version from the Boot BOM. -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+		</dependency>
 
 		<dependency>
 			<groupId>org.postgresql</groupId>

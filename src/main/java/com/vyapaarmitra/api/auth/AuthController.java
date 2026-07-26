@@ -1,7 +1,12 @@
 package com.vyapaarmitra.api.auth;
 
+import com.vyapaarmitra.api.auth.AuthDtos.GoogleAuthRequest;
+import com.vyapaarmitra.api.auth.AuthDtos.GoogleAuthResponse;
 import com.vyapaarmitra.api.auth.AuthDtos.LoginRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.MeResponse;
+import com.vyapaarmitra.api.auth.AuthDtos.OtpRequestRequest;
+import com.vyapaarmitra.api.auth.AuthDtos.OtpRequestResponse;
+import com.vyapaarmitra.api.auth.AuthDtos.OtpVerifyRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.RefreshRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.RegisterRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.TokenResponse;
@@ -20,9 +25,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final OtpService otpService;
+    private final GoogleAuthService googleAuthService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, OtpService otpService,
+                          GoogleAuthService googleAuthService) {
         this.authService = authService;
+        this.otpService = otpService;
+        this.googleAuthService = googleAuthService;
     }
 
     @PostMapping("/auth/register")
@@ -34,6 +44,24 @@ public class AuthController {
     @PostMapping("/auth/login")
     public TokenResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request.email(), request.password());
+    }
+
+    /** Request an email one-time code for passwordless login or verified signup. */
+    @PostMapping("/auth/otp/request")
+    public OtpRequestResponse otpRequest(@Valid @RequestBody OtpRequestRequest request) {
+        return otpService.request(request.email(), request.purpose());
+    }
+
+    /** Verify an email one-time code and issue a session. */
+    @PostMapping("/auth/otp/verify")
+    public TokenResponse otpVerify(@Valid @RequestBody OtpVerifyRequest request) {
+        return otpService.verify(request);
+    }
+
+    /** Sign in / sign up with a Google ID token. */
+    @PostMapping("/auth/google")
+    public GoogleAuthResponse google(@Valid @RequestBody GoogleAuthRequest request) {
+        return googleAuthService.signIn(request);
     }
 
     @PostMapping("/auth/refresh")

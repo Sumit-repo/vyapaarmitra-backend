@@ -38,11 +38,19 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(name = "password_hash", nullable = false)
+    // Nullable: Google- or OTP-only accounts have no password.
+    @Column(name = "password_hash")
     private String passwordHash;
 
     @Column(name = "full_name", nullable = false)
     private String fullName;
+
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified = false;
+
+    // Google subject id, set once an account is linked to a Google identity.
+    @Column(name = "google_sub", unique = true)
+    private String googleSub;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

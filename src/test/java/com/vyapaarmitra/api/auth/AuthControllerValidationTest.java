@@ -23,6 +23,12 @@ class AuthControllerValidationTest {
     private AuthService authService;
 
     @MockitoBean
+    private OtpService otpService;
+
+    @MockitoBean
+    private GoogleAuthService googleAuthService;
+
+    @MockitoBean
     private JwtService jwtService;
 
     @Test
@@ -97,5 +103,65 @@ class AuthControllerValidationTest {
                 .content("{}"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error.details.refreshToken").exists());
+    }
+
+    @Test
+    void otpRequestRejectsMissingPurpose() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/otp/request")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"owner@shop.com\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.details.purpose").exists());
+    }
+
+    @Test
+    void otpRequestRejectsInvalidEmail() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/otp/request")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"nope\",\"purpose\":\"LOGIN\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.details.email").exists());
+    }
+
+    @Test
+    void otpRequestAcceptsValidRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/otp/request")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"owner@shop.com\",\"purpose\":\"LOGIN\"}"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    void otpVerifyRejectsBlankCode() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/otp/verify")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"owner@shop.com\",\"code\":\"\",\"purpose\":\"LOGIN\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.details.code").exists());
+    }
+
+    @Test
+    void otpVerifyAcceptsValidRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/otp/verify")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"owner@shop.com\",\"code\":\"123456\",\"purpose\":\"LOGIN\"}"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    void googleRejectsMissingIdToken() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/google")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.details.idToken").exists());
+    }
+
+    @Test
+    void googleAcceptsValidRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/google")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"idToken\":\"a.b.c\"}"))
+            .andExpect(status().isOk());
     }
 }

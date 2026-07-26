@@ -37,10 +37,28 @@ public class BusinessProvisioningService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    /** Creates business + first branch + owner + starter templates. Returns the owner. */
+    /** Creates business + first branch + password owner + starter templates. Returns the owner. */
     @Transactional
     public User provision(String businessName, String branchName, String ownerName,
                           String email, String rawPassword) {
+        return provisionInternal(businessName, branchName, ownerName, email,
+            passwordEncoder.encode(rawPassword), null, false);
+    }
+
+    /**
+     * Creates a business owned by a Google-verified account (no password, email
+     * already verified, Google subject linked). Returns the owner.
+     */
+    @Transactional
+    public User provisionOAuth(String businessName, String branchName, String ownerName,
+                               String email, String googleSub) {
+        return provisionInternal(businessName, branchName, ownerName, email,
+            null, googleSub, true);
+    }
+
+    private User provisionInternal(String businessName, String branchName, String ownerName,
+                                   String email, String passwordHash, String googleSub,
+                                   boolean emailVerified) {
         Business business = new Business();
         business.setName(businessName);
         businessRepository.save(business);
@@ -53,9 +71,11 @@ public class BusinessProvisioningService {
         User owner = new User();
         owner.setBusinessId(business.getId());
         owner.setEmail(email.toLowerCase());
-        owner.setPasswordHash(passwordEncoder.encode(rawPassword));
+        owner.setPasswordHash(passwordHash);
         owner.setFullName(ownerName);
         owner.setRole(Role.OWNER);
+        owner.setGoogleSub(googleSub);
+        owner.setEmailVerified(emailVerified);
         userRepository.save(owner);
 
         seedStarterTemplates(business);
