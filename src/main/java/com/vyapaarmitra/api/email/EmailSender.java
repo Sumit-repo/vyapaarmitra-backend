@@ -23,13 +23,14 @@ public class EmailSender {
 
     private static final URI RESEND_ENDPOINT = URI.create("https://api.resend.com/emails");
 
+    // Boot 4's webmvc starter doesn't expose an ObjectMapper bean, so own one here.
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     private final AppProperties.Mail mail;
     private final HttpClient httpClient;
-    private final ObjectMapper objectMapper;
 
-    public EmailSender(AppProperties props, ObjectMapper objectMapper) {
+    public EmailSender(AppProperties props) {
         this.mail = props.mail();
-        this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
@@ -47,7 +48,7 @@ public class EmailSender {
             return;
         }
         try {
-            String payload = objectMapper.writeValueAsString(Map.of(
+            String payload = MAPPER.writeValueAsString(Map.of(
                 "from", mail.from(),
                 "to", to,
                 "subject", subject,

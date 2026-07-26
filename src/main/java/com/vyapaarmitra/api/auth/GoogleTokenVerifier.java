@@ -29,15 +29,16 @@ public class GoogleTokenVerifier {
     private static final Set<String> VALID_ISSUERS =
         Set.of("accounts.google.com", "https://accounts.google.com");
 
+    // Boot 4's webmvc starter doesn't expose an ObjectMapper bean, so own one here.
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     private final List<String> allowedClientIds;
     private final HttpClient httpClient;
-    private final ObjectMapper objectMapper;
 
-    public GoogleTokenVerifier(AppProperties props, ObjectMapper objectMapper) {
+    public GoogleTokenVerifier(AppProperties props) {
         this.allowedClientIds = props.google() == null || props.google().clientIds() == null
             ? List.of()
             : props.google().clientIds();
-        this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
@@ -94,7 +95,7 @@ public class GoogleTokenVerifier {
             if (response.statusCode() != 200) {
                 throw ApiException.unauthorized("Invalid Google token");
             }
-            return objectMapper.readTree(response.body());
+            return MAPPER.readTree(response.body());
         } catch (java.io.IOException e) {
             log.error("[google] tokeninfo request failed", e);
             throw ApiException.unauthorized("Could not verify Google token");
