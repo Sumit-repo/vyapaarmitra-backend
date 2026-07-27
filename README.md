@@ -78,11 +78,26 @@ POST  /api/v1/templates/{id}/render        ({{customer_name}}, {{amount_due}}, �
 GET/POST /api/v1/reminders                 (outcome log: sent/promised/paid)
 GET   /api/v1/dashboard/summary            (?branchId or consolidated; incl. totalPayable)
 GET   /api/v1/dashboard/collections        (?branchId&days — daily collected/given trend)
+GET   /api/v1/plan                         (effective plan + trial + derived usage)
+POST  /api/v1/billing/checkout             ({plan,period} → Razorpay hosted checkout link)
+POST  /api/v1/billing/portal               (cancel at period end)
+POST  /api/v1/webhooks/razorpay            (HMAC-verified; the only path that activates a plan)
 GET   /healthz                             (liveness; /actuator/health = readiness)
 ```
 
 Omitting `branchId` on scoped endpoints gives the consolidated view of all branches
 the caller can access. List endpoints are paginated and capped at 100 per page.
+
+## Subscriptions & billing
+
+Plan state lives in the `subscriptions` table (one row per business); the *effective*
+plan applies the 14-day Pro trial and dunning grace at read time (`PlanService`).
+Usage (entries/day, GST bills/month) is **derived** from `invoices` + `ledger_entries`
+in Asia/Kolkata time — no counters. Caps and feature locks are enforced in `PlanGuard`
+(→ `402 PLAN_LIMIT` with a `reason`). Upgrades go through **Razorpay Subscriptions**:
+`/billing/checkout` returns a hosted link; a plan only activates on the HMAC-verified
+`/webhooks/razorpay` callback (idempotent via `billing_events`). Config lives under
+`app.razorpay.*` (see `.env.example`). Full contract: [`../docs/subscriptions.md`](../docs/subscriptions.md).
 
 ## Local development
 

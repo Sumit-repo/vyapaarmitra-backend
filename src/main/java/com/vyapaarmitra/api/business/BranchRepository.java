@@ -11,6 +11,9 @@ public interface BranchRepository extends JpaRepository<Branch, UUID> {
 
     List<Branch> findByBusinessIdOrderByCreatedAtAsc(UUID businessId);
 
+    /** Active branches a business runs — checked against the plan's branch cap. */
+    long countByBusinessIdAndActiveTrue(UUID businessId);
+
     @Query("select b.id from Branch b where b.businessId = :businessId and b.active = true")
     Set<UUID> findActiveIdsByBusinessId(@Param("businessId") UUID businessId);
 }

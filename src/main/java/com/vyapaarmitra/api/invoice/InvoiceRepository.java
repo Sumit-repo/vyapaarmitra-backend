@@ -1,5 +1,6 @@
 package com.vyapaarmitra.api.invoice;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -28,4 +29,21 @@ public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
 
     /** Count of a branch's bills of a given type — drives the number series. */
     long countByBranchIdAndBillType(UUID branchId, BillType billType);
+
+    /** Bills a business raised in a half-open window — drives daily-entry usage. */
+    @Query("""
+        select count(i) from Invoice i
+        where i.businessId = :businessId and i.createdAt >= :from and i.createdAt < :to
+        """)
+    long countCreatedBetween(@Param("businessId") UUID businessId,
+                             @Param("from") Instant from, @Param("to") Instant to);
+
+    /** Pakka (GST) bills a business raised in a half-open window — drives the monthly GST cap. */
+    @Query("""
+        select count(i) from Invoice i
+        where i.businessId = :businessId and i.billType = :type
+          and i.createdAt >= :from and i.createdAt < :to
+        """)
+    long countByTypeCreatedBetween(@Param("businessId") UUID businessId, @Param("type") BillType type,
+                                   @Param("from") Instant from, @Param("to") Instant to);
 }

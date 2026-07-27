@@ -39,6 +39,8 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/healthz", "/actuator/health/**", "/api/v1/auth/**").permitAll()
+                // Gateway webhooks are authenticated by HMAC signature, not a JWT.
+                .requestMatchers("/api/v1/webhooks/**").permitAll()
                 .anyRequest().authenticated())
             .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, e) -> {
                 response.setStatus(401);

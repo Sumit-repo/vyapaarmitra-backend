@@ -1,11 +1,15 @@
 package com.vyapaarmitra.api.business;
 
+import com.vyapaarmitra.api.subscription.Subscription;
+import com.vyapaarmitra.api.subscription.SubscriptionRepository;
 import com.vyapaarmitra.api.template.MessageTemplate;
 import com.vyapaarmitra.api.template.MessageTemplateRepository;
 import com.vyapaarmitra.api.template.TemplateChannel;
 import com.vyapaarmitra.api.user.Role;
 import com.vyapaarmitra.api.user.User;
 import com.vyapaarmitra.api.user.UserRepository;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,17 +27,22 @@ public class BusinessProvisioningService {
     private final BranchRepository branchRepository;
     private final UserRepository userRepository;
     private final MessageTemplateRepository templateRepository;
+    private final SubscriptionRepository subscriptionRepository;
     private final PasswordEncoder passwordEncoder;
+
+    private static final int TRIAL_DAYS = 14;
 
     public BusinessProvisioningService(BusinessRepository businessRepository,
                                        BranchRepository branchRepository,
                                        UserRepository userRepository,
                                        MessageTemplateRepository templateRepository,
+                                       SubscriptionRepository subscriptionRepository,
                                        PasswordEncoder passwordEncoder) {
         this.businessRepository = businessRepository;
         this.branchRepository = branchRepository;
         this.userRepository = userRepository;
         this.templateRepository = templateRepository;
+        this.subscriptionRepository = subscriptionRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -79,7 +88,16 @@ public class BusinessProvisioningService {
         userRepository.save(owner);
 
         seedStarterTemplates(business);
+        seedTrialSubscription(business);
         return owner;
+    }
+
+    /** Every new business starts on a 14-day Pro trial, no card required. */
+    private void seedTrialSubscription(Business business) {
+        Subscription sub = new Subscription();
+        sub.setBusinessId(business.getId());
+        sub.setTrialEndsAt(Instant.now().plus(TRIAL_DAYS, ChronoUnit.DAYS));
+        subscriptionRepository.save(sub);
     }
 
     private void seedStarterTemplates(Business business) {

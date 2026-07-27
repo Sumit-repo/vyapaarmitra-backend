@@ -5,6 +5,7 @@ import com.vyapaarmitra.api.common.PageResponse;
 import com.vyapaarmitra.api.invoice.InvoiceDtos.CreateInvoiceRequest;
 import com.vyapaarmitra.api.invoice.InvoiceDtos.InvoiceListItem;
 import com.vyapaarmitra.api.invoice.InvoiceDtos.InvoiceResponse;
+import com.vyapaarmitra.api.subscription.PlanGuard;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -25,9 +26,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class InvoiceController {
 
     private final InvoiceService invoiceService;
+    private final PlanGuard planGuard;
 
-    public InvoiceController(InvoiceService invoiceService) {
+    public InvoiceController(InvoiceService invoiceService, PlanGuard planGuard) {
         this.invoiceService = invoiceService;
+        this.planGuard = planGuard;
     }
 
     @GetMapping("/invoices")
@@ -49,6 +52,7 @@ public class InvoiceController {
     @ResponseStatus(HttpStatus.CREATED)
     public InvoiceResponse create(@AuthenticationPrincipal AuthUser authUser,
                                   @Valid @RequestBody CreateInvoiceRequest request) {
+        planGuard.assertCanCreateEntry(authUser, request.billType() == BillType.PAKKA);
         return invoiceService.create(authUser, request);
     }
 

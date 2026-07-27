@@ -36,4 +36,12 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, UUID> 
         """)
     long countBetween(@Param("branchIds") Collection<UUID> branchIds,
                       @Param("from") Instant from, @Param("to") Instant to);
+
+    /** Business-scoped entry count in a half-open window — drives daily-entry usage. */
+    @Query("""
+        select count(e) from LedgerEntry e
+        where e.businessId = :businessId and e.entryAt >= :from and e.entryAt < :to
+        """)
+    long countByBusinessBetween(@Param("businessId") UUID businessId,
+                                @Param("from") Instant from, @Param("to") Instant to);
 }

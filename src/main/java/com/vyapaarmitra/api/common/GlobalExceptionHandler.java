@@ -1,5 +1,6 @@
 package com.vyapaarmitra.api.common;
 
+import com.vyapaarmitra.api.subscription.PlanLimitException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +22,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ApiException.class)
     ResponseEntity<Map<String, Object>> handleApi(ApiException ex) {
         return ResponseEntity.status(ex.getStatus()).body(errorBody(ex.getCode(), ex.getMessage(), null));
+    }
+
+    /** Plan limit: 402 with a {@code reason} the web maps onto its paywall copy. */
+    @ExceptionHandler(PlanLimitException.class)
+    ResponseEntity<Map<String, Object>> handlePlanLimit(PlanLimitException ex) {
+        Map<String, Object> error = new LinkedHashMap<>();
+        error.put("code", "PLAN_LIMIT");
+        error.put("reason", ex.getReason());
+        error.put("message", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(Map.of("error", error));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

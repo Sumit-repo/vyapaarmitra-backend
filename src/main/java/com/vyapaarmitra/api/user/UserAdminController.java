@@ -1,6 +1,8 @@
 package com.vyapaarmitra.api.user;
 
 import com.vyapaarmitra.api.auth.AuthUser;
+import com.vyapaarmitra.api.subscription.PlanCatalog.Feature;
+import com.vyapaarmitra.api.subscription.PlanGuard;
 import com.vyapaarmitra.api.user.UserDtos.CreateUserRequest;
 import com.vyapaarmitra.api.user.UserDtos.UpdateUserRequest;
 import com.vyapaarmitra.api.user.UserDtos.UserResponse;
@@ -25,9 +27,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserAdminController {
 
     private final UserService userService;
+    private final PlanGuard planGuard;
 
-    public UserAdminController(UserService userService) {
+    public UserAdminController(UserService userService, PlanGuard planGuard) {
         this.userService = userService;
+        this.planGuard = planGuard;
     }
 
     @GetMapping
@@ -39,6 +43,7 @@ public class UserAdminController {
     @ResponseStatus(HttpStatus.CREATED)
     public UserResponse create(@AuthenticationPrincipal AuthUser authUser,
                                @Valid @RequestBody CreateUserRequest request) {
+        planGuard.requireFeature(authUser, Feature.STAFF, "staff");
         return userService.create(authUser, request);
     }
 

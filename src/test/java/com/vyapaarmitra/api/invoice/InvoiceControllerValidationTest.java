@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.vyapaarmitra.api.auth.JwtService;
+import com.vyapaarmitra.api.subscription.PlanGuard;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +28,9 @@ class InvoiceControllerValidationTest {
 
     @MockitoBean
     private JwtService jwtService;
+
+    @MockitoBean
+    private PlanGuard planGuard;
 
     private static String body(String items, String extra) {
         return "{\"branchId\":\"" + UUID.randomUUID() + "\",\"billType\":\"KACCHA\","

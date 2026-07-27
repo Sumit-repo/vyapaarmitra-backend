@@ -5,6 +5,7 @@ import com.vyapaarmitra.api.common.PageResponse;
 import com.vyapaarmitra.api.ledger.LedgerDtos.CreateEntryRequest;
 import com.vyapaarmitra.api.ledger.LedgerDtos.EntryCreatedResponse;
 import com.vyapaarmitra.api.ledger.LedgerDtos.EntryResponse;
+import com.vyapaarmitra.api.subscription.PlanGuard;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -25,15 +26,18 @@ import org.springframework.web.bind.annotation.RestController;
 public class LedgerController {
 
     private final LedgerService ledgerService;
+    private final PlanGuard planGuard;
 
-    public LedgerController(LedgerService ledgerService) {
+    public LedgerController(LedgerService ledgerService, PlanGuard planGuard) {
         this.ledgerService = ledgerService;
+        this.planGuard = planGuard;
     }
 
     @PostMapping("/entries")
     @ResponseStatus(HttpStatus.CREATED)
     public EntryCreatedResponse create(@AuthenticationPrincipal AuthUser authUser,
                                        @Valid @RequestBody CreateEntryRequest request) {
+        planGuard.assertCanCreateEntry(authUser, false);
         return ledgerService.createEntry(authUser, request);
     }
 

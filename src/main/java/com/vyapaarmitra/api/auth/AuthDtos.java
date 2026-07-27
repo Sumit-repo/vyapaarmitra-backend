@@ -1,5 +1,6 @@
 package com.vyapaarmitra.api.auth;
 
+import com.vyapaarmitra.api.subscription.PlanDtos.PlanView;
 import com.vyapaarmitra.api.user.Role;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -64,6 +65,6 @@ public final class AuthDtos {
     }
 
     public record MeResponse(UUID id, String email, String fullName, String businessName,
-                             Role role, UUID businessId, Set<UUID> branchIds) {
+                             Role role, UUID businessId, Set<UUID> branchIds, PlanView plan) {
     }
 }

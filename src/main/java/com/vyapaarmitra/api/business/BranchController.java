@@ -5,6 +5,7 @@ import com.vyapaarmitra.api.business.BranchDtos.BranchResponse;
 import com.vyapaarmitra.api.business.BranchDtos.CreateBranchRequest;
 import com.vyapaarmitra.api.business.BranchDtos.UpdateBranchRequest;
 import com.vyapaarmitra.api.common.ApiException;
+import com.vyapaarmitra.api.subscription.PlanGuard;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Set;
@@ -26,11 +27,14 @@ public class BranchController {
 
     private final BranchRepository branchRepository;
     private final BranchAccessService branchAccessService;
+    private final PlanGuard planGuard;
 
     public BranchController(BranchRepository branchRepository,
-                            BranchAccessService branchAccessService) {
+                            BranchAccessService branchAccessService,
+                            PlanGuard planGuard) {
         this.branchRepository = branchRepository;
         this.branchAccessService = branchAccessService;
+        this.planGuard = planGuard;
     }
 
     @GetMapping
@@ -48,6 +52,7 @@ public class BranchController {
     @Transactional
     public BranchResponse create(@AuthenticationPrincipal AuthUser authUser,
                                  @Valid @RequestBody CreateBranchRequest request) {
+        planGuard.assertCanAddBranch(authUser, branchRepository.countByBusinessIdAndActiveTrue(authUser.businessId()));
         Branch branch = new Branch();
         branch.setBusinessId(authUser.businessId());
         branch.setName(request.name());

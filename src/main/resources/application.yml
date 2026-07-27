@@ -47,6 +47,19 @@ app:
     # When blank, one-time codes are logged to the server instead of emailed (dev only).
     resend-api-key: ${RESEND_API_KEY:}
     otp-ttl-minutes: ${OTP_TTL_MINUTES:10}
+  razorpay:
+    # Test mode keys (rzp_test_*) work immediately with no KYC. When blank, checkout
+    # returns a clear "payments not set up" error and no charge can happen.
+    key-id: ${RAZORPAY_KEY_ID:}
+    key-secret: ${RAZORPAY_KEY_SECRET:}
+    # Secret configured on the Razorpay webhook — signs every callback body.
+    webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+    # Map each tier+period to a Razorpay Plan id created once in the dashboard.
+    plans:
+      LITE_MONTHLY: ${RAZORPAY_PLAN_LITE_MONTHLY:}
+      LITE_YEARLY: ${RAZORPAY_PLAN_LITE_YEARLY:}
+      PRO_MONTHLY: ${RAZORPAY_PLAN_PRO_MONTHLY:}
+      PRO_YEARLY: ${RAZORPAY_PLAN_PRO_YEARLY:}
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
     # Max login/refresh attempts per client IP per minute (brute-force guard).
