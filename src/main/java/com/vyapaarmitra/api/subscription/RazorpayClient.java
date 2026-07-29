@@ -1,6 +1,7 @@
 package com.vyapaarmitra.api.subscription;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vyapaarmitra.api.common.ApiException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -21,6 +22,11 @@ import org.springframework.web.client.RestClientException;
 public class RazorpayClient {
 
     private static final String BASE_URL = "https://api.razorpay.com/v1";
+
+    // Boot 4's RestClient converter is Jackson 3 (tools.jackson) and can't build a
+    // Jackson 2 JsonNode, so we read the raw String and parse it with our own Jackson
+    // 2 mapper — the same convention the rest of the codebase uses.
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final RazorpayProperties props;
     private final RestClient restClient;
@@ -54,13 +60,14 @@ public class RazorpayClient {
 
     private JsonNode post(String path, Object body) {
         try {
-            return restClient.post()
+            String json = restClient.post()
                 .uri(path)
                 .header("Authorization", basicAuth())
                 .body(body)
                 .retrieve()
-                .body(JsonNode.class);
-        } catch (RestClientException e) {
+                .body(String.class);
+            return MAPPER.readTree(json);
+        } catch (RestClientException | com.fasterxml.jackson.core.JsonProcessingException e) {
             throw new ApiException(HttpStatus.BAD_GATEWAY, "GATEWAY_ERROR",
                 "Payment gateway is unavailable. Please try again.");
         }
