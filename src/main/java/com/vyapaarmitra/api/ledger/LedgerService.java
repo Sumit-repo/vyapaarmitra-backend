@@ -14,8 +14,10 @@ import com.vyapaarmitra.api.trust.TrustScoreService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,16 +70,40 @@ public class LedgerService {
         recomputeCustomerState(customer);
         customerRepository.save(customer);
 
-        return new EntryCreatedResponse(EntryResponse.from(entry), CustomerResponse.from(customer));
+        // The new entry is the newest, so its running balance is the customer's fresh balance.
+        return new EntryCreatedResponse(
+            EntryResponse.from(entry, customer.getCurrentBalance()), CustomerResponse.from(customer));
     }
 
     @Transactional(readOnly = true)
     public PageResponse<EntryResponse> ledger(AuthUser authUser, UUID customerId, int page, int size) {
-        customerService.loadAccessible(authUser, customerId);
+        Customer customer = customerService.loadAccessible(authUser, customerId);
         var pageable = PageRequest.of(Math.max(0, page), Math.min(Math.max(1, size), MAX_PAGE_SIZE));
-        return PageResponse.of(ledgerEntryRepository
-            .findByCustomerIdOrderByEntryAtDesc(customerId, pageable)
-            .map(EntryResponse::from));
+        Page<LedgerEntry> entries = ledgerEntryRepository
+            .findByCustomerIdOrderByEntryAtDesc(customerId, pageable);
+        List<LedgerEntry> content = entries.getContent();
+
+        List<EntryResponse> items;
+        if (content.isEmpty()) {
+            items = List.of();
+        } else {
+            // Anchor the page: balance after its newest entry = current balance − everything newer.
+            BigDecimal newerSum = ledgerEntryRepository.signedSumAfter(customerId, content.get(0).getEntryAt());
+            BigDecimal balanceAfterTop = customer.getCurrentBalance().subtract(newerSum);
+            List<BigDecimal> signed = content.stream().map(LedgerService::signed).toList();
+            List<BigDecimal> balances = LedgerMath.runningBalancesDesc(signed, balanceAfterTop);
+            items = new ArrayList<>(content.size());
+            for (int i = 0; i < content.size(); i++) {
+                items.add(EntryResponse.from(content.get(i), balances.get(i)));
+            }
+        }
+        return new PageResponse<>(items, entries.getNumber(), entries.getSize(),
+            entries.getTotalElements(), entries.getTotalPages());
+    }
+
+    /** Signed contribution to the balance: credits add, payments subtract. */
+    private static BigDecimal signed(LedgerEntry e) {
+        return e.getEntryType() == EntryType.CREDIT ? e.getAmount() : e.getAmount().negate();
     }
 
     /**

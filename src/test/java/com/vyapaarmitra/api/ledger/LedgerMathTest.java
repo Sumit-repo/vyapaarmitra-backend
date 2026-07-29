@@ -22,6 +22,30 @@ class LedgerMathTest {
     }
 
     @Test
+    void runningBalancesWalkBackFromTheNewestEntry() {
+        // Page is newest-first. Newest entry left a balance of 250; walking to older
+        // entries subtracts each newer entry's signed amount in turn.
+        // signed (newest→oldest): +100 (credit), -50 (payment), +200 (credit)
+        // balanceAfter:            250,           250-100=150,    150-(-50)=200
+        List<BigDecimal> signedNewestFirst = List.of(
+            new BigDecimal("100"), new BigDecimal("-50"), new BigDecimal("200"));
+        List<BigDecimal> balances = LedgerMath.runningBalancesDesc(signedNewestFirst, new BigDecimal("250"));
+        assertThat(balances).containsExactly(
+            new BigDecimal("250"), new BigDecimal("150"), new BigDecimal("200"));
+    }
+
+    @Test
+    void runningBalancesHandleAnEmptyPage() {
+        assertThat(LedgerMath.runningBalancesDesc(List.of(), new BigDecimal("99"))).isEmpty();
+    }
+
+    @Test
+    void runningBalancesSingleEntryIsTheAnchor() {
+        assertThat(LedgerMath.runningBalancesDesc(List.of(new BigDecimal("500")), new BigDecimal("500")))
+            .containsExactly(new BigDecimal("500"));
+    }
+
+    @Test
     void paymentsClearOldestCreditFirst() {
         List<CreditLine> credits = List.of(
             new CreditLine(new BigDecimal("100"), TODAY.minusDays(40)),

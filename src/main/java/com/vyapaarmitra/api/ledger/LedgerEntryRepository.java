@@ -17,6 +17,19 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, UUID> 
 
     List<LedgerEntry> findByCustomerIdOrderByEntryAtAsc(UUID customerId);
 
+    /**
+     * Signed sum (CREDIT +, PAYMENT −) of entries strictly newer than {@code after}.
+     * Used to anchor a page's running balance without replaying the whole ledger:
+     * balanceAfter(newest-on-page) = currentBalance − signedSumAfter(that entry's instant).
+     */
+    @Query("""
+        select coalesce(sum(case when e.entryType = com.vyapaarmitra.api.ledger.EntryType.CREDIT
+                                 then e.amount else e.amount * -1 end), 0)
+        from LedgerEntry e
+        where e.customerId = :customerId and e.entryAt > :after
+        """)
+    BigDecimal signedSumAfter(@Param("customerId") UUID customerId, @Param("after") Instant after);
+
     /** Shop-wide statement feed: all entries for the scoped branches since `from`, oldest first. */
     List<LedgerEntry> findByBranchIdInAndEntryAtGreaterThanEqualOrderByEntryAtAsc(
         Collection<UUID> branchIds, Instant from);

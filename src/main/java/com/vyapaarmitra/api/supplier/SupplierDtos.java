@@ -71,11 +71,12 @@ public final class SupplierDtos {
 
     public record SupplierEntryResponse(UUID id, UUID supplierId, EntryType entryType,
                                         BigDecimal amount, String method, String note,
-                                        LocalDate dueDate, Instant entryAt) {
+                                        LocalDate dueDate, Instant entryAt, BigDecimal balanceAfter) {
 
-        public static SupplierEntryResponse from(SupplierLedgerEntry e) {
+        /** {@code balanceAfter} is the running balance after this entry (server-computed). */
+        public static SupplierEntryResponse from(SupplierLedgerEntry e, BigDecimal balanceAfter) {
             return new SupplierEntryResponse(e.getId(), e.getSupplierId(), e.getEntryType(),
-                e.getAmount(), e.getMethod(), e.getNote(), e.getDueDate(), e.getEntryAt());
+                e.getAmount(), e.getMethod(), e.getNote(), e.getDueDate(), e.getEntryAt(), balanceAfter);
         }
     }
 

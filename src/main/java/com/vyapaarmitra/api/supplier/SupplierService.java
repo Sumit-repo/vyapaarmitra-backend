@@ -105,11 +105,32 @@ public class SupplierService {
     @Transactional(readOnly = true)
     public PageResponse<SupplierEntryResponse> ledger(AuthUser authUser, UUID supplierId,
                                                       int page, int size) {
-        loadAccessible(authUser, supplierId);
+        Supplier supplier = loadAccessible(authUser, supplierId);
         Pageable pageable = PageRequest.of(Math.max(0, page), Math.min(Math.max(1, size), MAX_PAGE_SIZE));
-        return PageResponse.of(entryRepository
-            .findBySupplierIdOrderByEntryAtDesc(supplierId, pageable)
-            .map(SupplierEntryResponse::from));
+        Page<SupplierLedgerEntry> entries = entryRepository
+            .findBySupplierIdOrderByEntryAtDesc(supplierId, pageable);
+        List<SupplierLedgerEntry> content = entries.getContent();
+
+        List<SupplierEntryResponse> items;
+        if (content.isEmpty()) {
+            items = List.of();
+        } else {
+            BigDecimal newerSum = entryRepository.signedSumAfter(supplierId, content.get(0).getEntryAt());
+            BigDecimal balanceAfterTop = supplier.getCurrentBalance().subtract(newerSum);
+            List<BigDecimal> signed = content.stream().map(SupplierService::signed).toList();
+            List<BigDecimal> balances = LedgerMath.runningBalancesDesc(signed, balanceAfterTop);
+            items = new ArrayList<>(content.size());
+            for (int i = 0; i < content.size(); i++) {
+                items.add(SupplierEntryResponse.from(content.get(i), balances.get(i)));
+            }
+        }
+        return new PageResponse<>(items, entries.getNumber(), entries.getSize(),
+            entries.getTotalElements(), entries.getTotalPages());
+    }
+
+    /** Signed contribution to the balance: credits add, payments subtract. */
+    private static BigDecimal signed(SupplierLedgerEntry e) {
+        return e.getEntryType() == EntryType.CREDIT ? e.getAmount() : e.getAmount().negate();
     }
 
     @Transactional
@@ -136,7 +157,9 @@ public class SupplierService {
         recomputeSupplierState(supplier);
         supplierRepository.save(supplier);
 
-        return new SupplierEntryCreatedResponse(SupplierEntryResponse.from(entry),
+        // The new entry is the newest, so its running balance is the supplier's fresh balance.
+        return new SupplierEntryCreatedResponse(
+            SupplierEntryResponse.from(entry, supplier.getCurrentBalance()),
             SupplierResponse.from(supplier));
     }
 

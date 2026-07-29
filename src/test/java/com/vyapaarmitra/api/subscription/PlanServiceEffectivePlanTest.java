@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 class PlanServiceEffectivePlanTest {
 
     // effectivePlan(sub, now) touches no collaborators, so nulls are fine here.
-    private final PlanService service = new PlanService(null, null, null, null);
+    private final PlanService service = new PlanService(null, null, null, null, null);
 
     private static final Instant NOW = Instant.parse("2026-07-28T00:00:00Z");
 

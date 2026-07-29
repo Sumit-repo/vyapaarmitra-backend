@@ -3,6 +3,7 @@ package com.vyapaarmitra.api.ledger;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -59,5 +60,30 @@ public final class LedgerMath {
             overdueDays = ChronoUnit.DAYS.between(oldestOpenDueDate, today);
         }
         return new LedgerState(balance, oldestOpenDueDate, openOverdueCredits, overdueDays);
+    }
+
+    /**
+     * Running balance after each entry, for a page of entries in NEWEST-FIRST order.
+     * The balance is cumulative over all history, so a page on its own can't derive it —
+     * the caller anchors it with {@code balanceAfterNewest}: the balance immediately
+     * after the newest entry on the page (the account's current balance minus everything
+     * newer than that entry). Each older entry's balance-after is the next-newer entry's
+     * balance-after minus that newer entry's signed amount (CREDIT +, PAYMENT −).
+     *
+     * @param signedNewestFirst signed amounts in the same newest-first order as the page
+     * @param balanceAfterNewest balance immediately after the first (newest) element
+     * @return balance-after for each element, in the same newest-first order
+     */
+    public static List<BigDecimal> runningBalancesDesc(List<BigDecimal> signedNewestFirst,
+                                                       BigDecimal balanceAfterNewest) {
+        List<BigDecimal> out = new ArrayList<>(signedNewestFirst.size());
+        BigDecimal bal = balanceAfterNewest;
+        for (int i = 0; i < signedNewestFirst.size(); i++) {
+            if (i > 0) {
+                bal = bal.subtract(signedNewestFirst.get(i - 1));
+            }
+            out.add(bal);
+        }
+        return out;
     }
 }

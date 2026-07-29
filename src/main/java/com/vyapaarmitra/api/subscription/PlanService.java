@@ -11,7 +11,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -27,20 +30,36 @@ public class PlanService {
     private final InvoiceRepository invoiceRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
     private final AppTime appTime;
+    /** Self-reference so the lazy-create runs through the proxy (REQUIRES_NEW). */
+    private final PlanService self;
 
     public PlanService(SubscriptionRepository subscriptionRepository,
                        InvoiceRepository invoiceRepository,
                        LedgerEntryRepository ledgerEntryRepository,
-                       AppTime appTime) {
+                       AppTime appTime,
+                       @Lazy @Autowired PlanService self) {
         this.subscriptionRepository = subscriptionRepository;
         this.invoiceRepository = invoiceRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.appTime = appTime;
+        this.self = self;
     }
 
     /** The row for a business, lazily seeding a fresh 14-day trial if somehow absent. */
-    @Transactional
+    @Transactional(readOnly = true)
     public Subscription getOrCreate(UUID businessId) {
+        return subscriptionRepository.findByBusinessId(businessId)
+            // The read paths (AuthService.me/login/refresh) run read-only; do the
+            // insert in its own read-write tx so it actually flushes/commits. Backfill
+            // + trial bootstrap mean this branch shouldn't fire in practice — it's a safety net.
+            .orElseGet(() -> self.createTrial(businessId));
+    }
+
+    /** Insert (or return an already-created) trial row in an isolated read-write tx. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Subscription createTrial(UUID businessId) {
+        // Re-check inside the new tx so two concurrent callers don't double-insert
+        // (business_id is unique, but this avoids the constraint-violation path).
         return subscriptionRepository.findByBusinessId(businessId)
             .orElseGet(() -> {
                 Subscription sub = new Subscription();

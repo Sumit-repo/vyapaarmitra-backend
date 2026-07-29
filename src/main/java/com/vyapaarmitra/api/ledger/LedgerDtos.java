@@ -25,11 +25,13 @@ public final class LedgerDtos {
     }
 
     public record EntryResponse(UUID id, UUID customerId, EntryType entryType, BigDecimal amount,
-                                String method, String note, LocalDate dueDate, Instant entryAt) {
+                                String method, String note, LocalDate dueDate, Instant entryAt,
+                                BigDecimal balanceAfter) {
 
-        public static EntryResponse from(LedgerEntry e) {
+        /** {@code balanceAfter} is the running balance after this entry (server-computed). */
+        public static EntryResponse from(LedgerEntry e, BigDecimal balanceAfter) {
             return new EntryResponse(e.getId(), e.getCustomerId(), e.getEntryType(), e.getAmount(),
-                e.getMethod(), e.getNote(), e.getDueDate(), e.getEntryAt());
+                e.getMethod(), e.getNote(), e.getDueDate(), e.getEntryAt(), balanceAfter);
         }
     }
 
