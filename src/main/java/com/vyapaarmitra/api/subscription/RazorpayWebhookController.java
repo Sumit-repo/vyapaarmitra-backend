@@ -23,16 +23,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/webhooks")
 public class RazorpayWebhookController {
 
+    // Boot 4's webmvc starter doesn't expose an ObjectMapper bean, so own one here.
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     private final RazorpayProperties props;
     private final RazorpayWebhookService webhookService;
-    private final ObjectMapper objectMapper;
 
     public RazorpayWebhookController(RazorpayProperties props,
-                                     RazorpayWebhookService webhookService,
-                                     ObjectMapper objectMapper) {
+                                     RazorpayWebhookService webhookService) {
         this.props = props;
         this.webhookService = webhookService;
-        this.objectMapper = objectMapper;
     }
 
     @PostMapping("/razorpay")
@@ -46,7 +46,7 @@ public class RazorpayWebhookController {
 
         JsonNode root;
         try {
-            root = objectMapper.readTree(new String(rawBody, StandardCharsets.UTF_8));
+            root = MAPPER.readTree(new String(rawBody, StandardCharsets.UTF_8));
         } catch (Exception e) {
             log.warn("Razorpay webhook body was not valid JSON");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
