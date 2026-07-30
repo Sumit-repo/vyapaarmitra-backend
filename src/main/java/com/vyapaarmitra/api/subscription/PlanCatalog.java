@@ -41,7 +41,7 @@ public final class PlanCatalog {
 
     private static final Map<PlanTier, Entitlements> ENTITLEMENTS = Map.of(
         PlanTier.FREE, new Entitlements(25, 3, 1, false, false, false, false, false),
-        PlanTier.LITE, new Entitlements(100, UNLIMITED, 2, true, true, false, false, false),
+        PlanTier.LITE, new Entitlements(100, UNLIMITED, 2, true, false, false, false, false),
         PlanTier.PRO, new Entitlements(UNLIMITED, UNLIMITED, UNLIMITED, true, true, true, true, true)
     );
 

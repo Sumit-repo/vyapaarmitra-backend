@@ -3,7 +3,9 @@ package com.vyapaarmitra.api.subscription;
 import com.vyapaarmitra.api.auth.AuthUser;
 import com.vyapaarmitra.api.common.ApiException;
 import com.vyapaarmitra.api.subscription.BillingDtos.CheckoutResponse;
+import com.vyapaarmitra.api.subscription.BillingDtos.InvoiceItem;
 import com.vyapaarmitra.api.subscription.RazorpayClient.RazorpaySubscription;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,6 +66,18 @@ public class BillingService {
         subscriptionRepository.save(sub);
 
         return new CheckoutResponse(created.id(), created.shortUrl(), razorpayProperties.keyId());
+    }
+
+    /** GST invoices/receipts for the caller's subscription — empty until they've paid. */
+    @Transactional(readOnly = true)
+    public List<InvoiceItem> invoices(AuthUser authUser) {
+        Subscription sub = subscriptionRepository.findByBusinessId(authUser.businessId()).orElse(null);
+        if (sub == null || sub.getGatewaySubId() == null) {
+            return List.of();
+        }
+        return razorpayClient.listInvoices(sub.getGatewaySubId()).stream()
+            .map(i -> new InvoiceItem(i.id(), i.status(), i.amount(), i.issuedAt(), i.shortUrl()))
+            .toList();
     }
 
     @Transactional

@@ -8,6 +8,7 @@ import com.vyapaarmitra.api.customer.CustomerDtos.CreateCustomerRequest;
 import com.vyapaarmitra.api.customer.CustomerDtos.CustomerListItem;
 import com.vyapaarmitra.api.customer.CustomerDtos.CustomerResponse;
 import com.vyapaarmitra.api.customer.CustomerDtos.UpdateCustomerRequest;
+import com.vyapaarmitra.api.subscription.PlanService;
 import java.util.ArrayList;
 import java.util.Set;
 import java.util.UUID;
@@ -24,11 +25,19 @@ public class CustomerService {
 
     private final CustomerRepository customerRepository;
     private final BranchAccessService branchAccessService;
+    private final PlanService planService;
 
     public CustomerService(CustomerRepository customerRepository,
-                           BranchAccessService branchAccessService) {
+                           BranchAccessService branchAccessService,
+                           PlanService planService) {
         this.customerRepository = customerRepository;
         this.branchAccessService = branchAccessService;
+        this.planService = planService;
+    }
+
+    /** Trust scoring is a PRO feature — gate the fields on the effective plan. */
+    private boolean trustEntitled(AuthUser authUser) {
+        return planService.entitlements(authUser.businessId()).trustAnalytics();
     }
 
     @Transactional(readOnly = true)
@@ -39,12 +48,13 @@ public class CustomerService {
         Page<Customer> result = (q == null || q.isBlank())
             ? customerRepository.findByBranchIdInAndActiveTrueOrderByNameAsc(branchIds, pageable)
             : customerRepository.search(branchIds, q.trim(), pageable);
-        return PageResponse.of(result.map(CustomerListItem::from));
+        boolean includeTrust = trustEntitled(authUser);
+        return PageResponse.of(result.map(c -> CustomerListItem.from(c, includeTrust)));
     }
 
     @Transactional(readOnly = true)
     public CustomerResponse get(AuthUser authUser, UUID customerId) {
-        return CustomerResponse.from(loadAccessible(authUser, customerId));
+        return CustomerResponse.from(loadAccessible(authUser, customerId), trustEntitled(authUser));
     }
 
     @Transactional
@@ -58,7 +68,7 @@ public class CustomerService {
         customer.setAddress(request.address());
         customer.setTags(request.tags() == null ? new ArrayList<>() : new ArrayList<>(request.tags()));
         customer.setNotes(request.notes());
-        return CustomerResponse.from(customerRepository.save(customer));
+        return CustomerResponse.from(customerRepository.save(customer), trustEntitled(authUser));
     }
 
     @Transactional
@@ -83,7 +93,7 @@ public class CustomerService {
         if (request.active() != null) {
             customer.setActive(request.active());
         }
-        return CustomerResponse.from(customerRepository.save(customer));
+        return CustomerResponse.from(customerRepository.save(customer), trustEntitled(authUser));
     }
 
     @Transactional(readOnly = true)

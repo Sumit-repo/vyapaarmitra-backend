@@ -115,7 +115,11 @@ public class PlanService {
         int daysLeft = trialActive
             ? (int) Math.ceil((sub.getTrialEndsAt().toEpochMilli() - now.toEpochMilli()) / (double) DAY_MS)
             : 0;
-        return new PlanView(effective, sub.getPlan(), trialActive, daysLeft, usage(businessId));
+        // Billing facts for the web's Settings → Plan card. Access remains through a
+        // cancel until the period ends, so surface CANCELLED as "cancel at period end".
+        boolean cancelAtPeriodEnd = sub.getStatus() == SubscriptionStatus.CANCELLED;
+        return new PlanView(effective, sub.getPlan(), trialActive, daysLeft, usage(businessId),
+            sub.getBillingPeriod(), sub.getCurrentPeriodEnd(), cancelAtPeriodEnd);
     }
 
     /** Live usage against the caps, computed in the business timezone (Asia/Kolkata). */

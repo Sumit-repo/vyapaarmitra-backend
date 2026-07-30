@@ -21,8 +21,15 @@ public final class CustomerDtos {
                                    LocalDate oldestDueDate, Instant lastActivityAt, boolean active) {
 
         public static CustomerResponse from(Customer c) {
+            return from(c, true);
+        }
+
+        /** Trust score/bucket are a PRO feature — omitted (0 / null) when not entitled. */
+        public static CustomerResponse from(Customer c, boolean includeTrust) {
             return new CustomerResponse(c.getId(), c.getBranchId(), c.getName(), c.getPhone(),
-                c.getAddress(), c.getTags(), c.getNotes(), c.getTrustScore(), c.getTrustBucket(),
+                c.getAddress(), c.getTags(), c.getNotes(),
+                includeTrust ? c.getTrustScore() : 0,
+                includeTrust ? c.getTrustBucket() : null,
                 c.getCurrentBalance(), c.getOldestDueDate(), c.getUpdatedAt(), c.isActive());
         }
     }
@@ -33,8 +40,16 @@ public final class CustomerDtos {
                                    TrustBucket trustBucket, BigDecimal currentBalance) {
 
         public static CustomerListItem from(Customer c) {
+            return from(c, true);
+        }
+
+        /** Trust score/bucket are a PRO feature — omitted (0 / null) when not entitled. */
+        public static CustomerListItem from(Customer c, boolean includeTrust) {
             return new CustomerListItem(c.getId(), c.getName(), c.getPhone(), c.getAddress(),
-                c.getUpdatedAt(), c.getTrustScore(), c.getTrustBucket(), c.getCurrentBalance());
+                c.getUpdatedAt(),
+                includeTrust ? c.getTrustScore() : 0,
+                includeTrust ? c.getTrustBucket() : null,
+                c.getCurrentBalance());
         }
     }
 

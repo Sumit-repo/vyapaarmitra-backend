@@ -1,7 +1,7 @@
 # VyapaarMitra Backend — TODO
 
 _Spring Boot API. Companion to `../vyapaarmitra-web/todo.md` (web BFF). Sequenced
-as a punch-list. Last updated: 2026-07-28._
+as a punch-list. Last updated: 2026-07-30._
 
 ## ✅ Shipped 2026-07-28 — subscriptions & billing
 New `com.vyapaarmitra.api.subscription` package + `V7__subscriptions.sql`:
@@ -27,6 +27,32 @@ page's top row) and walked down the page via the pure `LedgerMath.runningBalance
 (unit-tested) — so a partial page renders correct balances with no full replay. This
 unblocks real ledger pagination on the web (see `../vyapaarmitra-web/todo.md` §D) and
 fixes a latent bug where >100 entries truncated + mis-summed balances client-side.
+
+## ✅ Shipped 2026-07-30 — plan tightening (recovery→Pro, trust strip, GST invoices)
+Follows `docs/subscriptions.md` §10 in the web repo:
+- **Recovery is now Pro-only.** `PlanCatalog` `LITE.recovery = false` (+ `PlanCatalogTest`
+  `lite.recovery()).isFalse()`). No controller change — `RecoveryController` already gates
+  on `Feature.RECOVERY` via `PlanGuard`, so the catalog flip does it. §10.1.
+- **Trust analytics field-strip.** `trustAnalytics` rides inside customer/dashboard
+  responses (no route to guard), so it's stripped at the DTO layer: `CustomerService` and
+  `DashboardService` inject `PlanService`, compute `trustEntitled(authUser)`, and thread
+  `includeTrust` into `CustomerDtos.CustomerResponse/CustomerListItem.from(c, includeTrust)`
+  and `TopDebtor` — emitting `trustScore=0, trustBucket=null` when not entitled. One check
+  per request. §10.3. _(Web adds a client-side gate too as defense-in-depth.)_
+- **Billing facts on `PlanView`.** Added `billingPeriod`, `currentPeriodEnd`,
+  `cancelAtPeriodEnd` to `PlanDtos.PlanView`; `PlanService.view()` populates them from the
+  subscription so the web can show renewal/cancel dates. §10.2.
+- **GST invoice endpoint.** `GET /api/v1/billing/invoices` → `BillingService.invoices()`
+  loads the caller's subscription and calls `RazorpayClient.listInvoices(subscription_id)`
+  (`GET /v1/invoices?subscription_id=…`), returning `[{ id, status, amount, issuedAt,
+  shortUrl }]` (`BillingDtos.InvoiceItem`). Auth-scoped (id never from the client); empty
+  until they've paid. §10.4.
+- Suite: **99 green** (contract + service tests updated).
+
+### ⏭️ Open follow-up from today
+- [ ] **Stamp GSTIN on the Razorpay invoice.** Razorpay only puts the business GSTIN on
+      the invoice if it's set on the customer/subscription. Pass the business GSTIN through
+      `createSubscription(...)` so the SaaS-charge invoice is GST-valid. _§10.4 "Still open"._
 
 ---
 
@@ -79,8 +105,8 @@ fixes a latent bug where >100 entries truncated + mis-summed balances client-sid
       hand. Consider a shared fixture / generated constants so they can't drift.
 
 ### Setup notes for tomorrow-me
-- Run tests: `./mvnw test` (offline: `./mvnw -o test`). Suite is **96 green**
-  (added `SubscriptionMaintenanceTest`).
+- Run tests: `./mvnw test` (offline: `./mvnw -o test`). Suite is **99 green**
+  (2026-07-30 plan tightening: recovery→Pro, trust strip, billing facts, GST invoices).
 - Razorpay config lives under `app.razorpay.*` — see `.env.example` (test-mode
   `rzp_test_*` keys work immediately, no KYC). Billing is disabled (clear 402-style
   error) when keys are blank.

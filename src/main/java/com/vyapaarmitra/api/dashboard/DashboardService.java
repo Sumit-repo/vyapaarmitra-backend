@@ -7,6 +7,7 @@ import com.vyapaarmitra.api.customer.CustomerRepository;
 import com.vyapaarmitra.api.customer.TrustBucket;
 import com.vyapaarmitra.api.ledger.EntryType;
 import com.vyapaarmitra.api.ledger.LedgerEntryRepository;
+import com.vyapaarmitra.api.subscription.PlanService;
 import com.vyapaarmitra.api.supplier.SupplierRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -27,17 +28,20 @@ public class DashboardService {
     private final LedgerEntryRepository ledgerEntryRepository;
     private final BranchAccessService branchAccessService;
     private final AppTime appTime;
+    private final PlanService planService;
 
     public DashboardService(CustomerRepository customerRepository,
                             SupplierRepository supplierRepository,
                             LedgerEntryRepository ledgerEntryRepository,
                             BranchAccessService branchAccessService,
-                            AppTime appTime) {
+                            AppTime appTime,
+                            PlanService planService) {
         this.customerRepository = customerRepository;
         this.supplierRepository = supplierRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.branchAccessService = branchAccessService;
         this.appTime = appTime;
+        this.planService = planService;
     }
 
     public record TopDebtor(UUID customerId, String name, BigDecimal balance, int trustScore,
@@ -79,10 +83,13 @@ public class DashboardService {
         Instant from = appTime.startOfDay(today);
         Instant to = appTime.startOfDay(today.plusDays(1));
 
+        // Trust scoring is a PRO feature — strip score/bucket from the debtor list otherwise.
+        boolean includeTrust = planService.entitlements(authUser.businessId()).trustAnalytics();
         List<TopDebtor> topDebtors = customerRepository.topDebtors(branchIds, PageRequest.of(0, 5))
             .stream()
             .map(c -> new TopDebtor(c.getId(), c.getName(), c.getCurrentBalance(),
-                c.getTrustScore(), c.getTrustBucket()))
+                includeTrust ? c.getTrustScore() : 0,
+                includeTrust ? c.getTrustBucket() : null))
             .toList();
 
         return new SummaryResponse(

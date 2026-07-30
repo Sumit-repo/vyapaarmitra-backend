@@ -33,7 +33,7 @@ class PlanCatalogTest {
         assertThat(lite.pakkaMonthlyCap()).isEqualTo(PlanCatalog.UNLIMITED);
         assertThat(lite.maxBranches()).isEqualTo(2);
         assertThat(lite.reports()).isTrue();
-        assertThat(lite.recovery()).isTrue();
+        assertThat(lite.recovery()).isFalse();
         assertThat(lite.automation()).isFalse();
         assertThat(lite.staff()).isFalse();
         assertThat(lite.trustAnalytics()).isFalse();

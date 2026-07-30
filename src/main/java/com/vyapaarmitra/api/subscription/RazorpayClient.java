@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vyapaarmitra.api.common.ApiException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -56,6 +58,38 @@ public class RazorpayClient {
     /** Cancels at the end of the current cycle — the shop keeps access until then. */
     public void cancelAtCycleEnd(String subscriptionId) {
         post("/subscriptions/" + subscriptionId + "/cancel", Map.of("cancel_at_cycle_end", 1));
+    }
+
+    public record RazorpayInvoice(String id, String status, long amount, Long issuedAt, String shortUrl) {
+    }
+
+    /** Invoices/receipts Razorpay has issued for a subscription (newest first). */
+    public List<RazorpayInvoice> listInvoices(String subscriptionId) {
+        JsonNode res = get("/invoices?subscription_id=" + subscriptionId + "&count=100");
+        List<RazorpayInvoice> out = new ArrayList<>();
+        for (JsonNode n : res.path("items")) {
+            out.add(new RazorpayInvoice(
+                n.path("id").asText(null),
+                n.path("status").asText(null),
+                n.path("amount").asLong(0),
+                n.hasNonNull("issued_at") ? n.path("issued_at").asLong() : null,
+                n.path("short_url").asText(null)));
+        }
+        return out;
+    }
+
+    private JsonNode get(String path) {
+        try {
+            String json = restClient.get()
+                .uri(path)
+                .header("Authorization", basicAuth())
+                .retrieve()
+                .body(String.class);
+            return MAPPER.readTree(json);
+        } catch (RestClientException | com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "GATEWAY_ERROR",
+                "Payment gateway is unavailable. Please try again.");
+        }
     }
 
     private JsonNode post(String path, Object body) {

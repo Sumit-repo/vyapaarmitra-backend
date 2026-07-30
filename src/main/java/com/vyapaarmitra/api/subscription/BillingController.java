@@ -3,9 +3,12 @@ package com.vyapaarmitra.api.subscription;
 import com.vyapaarmitra.api.auth.AuthUser;
 import com.vyapaarmitra.api.subscription.BillingDtos.CheckoutRequest;
 import com.vyapaarmitra.api.subscription.BillingDtos.CheckoutResponse;
+import com.vyapaarmitra.api.subscription.BillingDtos.InvoiceItem;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,5 +37,11 @@ public class BillingController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void portal(@AuthenticationPrincipal AuthUser authUser) {
         billingService.cancel(authUser);
+    }
+
+    /** GST invoices/receipts for the caller's subscription (newest first; empty if none). */
+    @GetMapping("/invoices")
+    public List<InvoiceItem> invoices(@AuthenticationPrincipal AuthUser authUser) {
+        return billingService.invoices(authUser);
     }
 }
