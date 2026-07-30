@@ -56,13 +56,16 @@ public class BillingService {
         RazorpaySubscription created =
             razorpayClient.createSubscription(planId, totalCount, authUser.businessId());
 
-        // Remember the intent so the webhook knows which plan to activate. The plan
-        // does NOT take effect until a verified subscription.activated/charged arrives.
+        // Store the intent ONLY. plan/billingPeriod are applied on the verified
+        // subscription.activated/charged webhook (RazorpayWebhookService) — never here.
+        // Writing setPlan(plan) here would grant the tier immediately to an already-
+        // ACTIVE customer upgrading (effectivePlan returns sub.getPlan() while ACTIVE),
+        // so a cancelled/unpaid checkout would leak paid access.
         Subscription sub = planService.getOrCreate(authUser.businessId());
         sub.setGateway("RAZORPAY");
         sub.setGatewaySubId(created.id());
-        sub.setPlan(plan);
-        sub.setBillingPeriod(period);
+        sub.setPendingPlan(plan);
+        sub.setPendingBillingPeriod(period);
         subscriptionRepository.save(sub);
 
         return new CheckoutResponse(created.id(), created.shortUrl(), razorpayProperties.keyId());

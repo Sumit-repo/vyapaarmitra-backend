@@ -46,6 +46,19 @@ public class Subscription {
     @Column(name = "billing_period")
     private BillingPeriod billingPeriod;
 
+    /**
+     * The plan/period a checkout is trying to buy. Set at checkout and applied to
+     * {@code plan}/{@code billingPeriod} only on a verified activated/charged webhook,
+     * so an unpaid or cancelled checkout never grants the tier. Null when idle.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "pending_plan")
+    private PlanTier pendingPlan;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "pending_billing_period")
+    private BillingPeriod pendingBillingPeriod;
+
     @Column(name = "trial_ends_at", nullable = false)
     private Instant trialEndsAt;
 

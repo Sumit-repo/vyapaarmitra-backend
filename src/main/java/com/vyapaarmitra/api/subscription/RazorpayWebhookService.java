@@ -64,6 +64,14 @@ public class RazorpayWebhookService {
     private void apply(Subscription sub, String eventType, JsonNode entity) {
         switch (eventType) {
             case "subscription.activated", "subscription.charged" -> {
+                // Payment is verified — NOW apply the tier the user chose at checkout.
+                // This is the only place plan/billingPeriod change on an upgrade.
+                if (sub.getPendingPlan() != null) {
+                    sub.setPlan(sub.getPendingPlan());
+                    sub.setBillingPeriod(sub.getPendingBillingPeriod());
+                    sub.setPendingPlan(null);
+                    sub.setPendingBillingPeriod(null);
+                }
                 sub.setStatus(SubscriptionStatus.ACTIVE);
                 sub.setGraceUntil(null);
                 Instant periodEnd = epochSeconds(entity.path("current_end").asLong(0));

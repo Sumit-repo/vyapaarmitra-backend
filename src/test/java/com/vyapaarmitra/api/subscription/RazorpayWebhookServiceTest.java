@@ -61,6 +61,32 @@ class RazorpayWebhookServiceTest {
     }
 
     @Test
+    void appliesPendingPlanOnlyOnActivation() throws Exception {
+        JsonNode root = charged("sub_2", 1_900_000_000L);
+        byte[] raw = root.toString().getBytes(StandardCharsets.UTF_8);
+
+        when(billingEventRepository.findByGatewayAndGatewayEventId("RAZORPAY", "evt_2"))
+            .thenReturn(Optional.empty());
+        when(billingEventRepository.save(any(BillingEvent.class))).thenAnswer(i -> i.getArgument(0));
+
+        // An active LITE subscriber whose PRO checkout is now paid: the pending tier applies.
+        Subscription sub = new Subscription();
+        sub.setStatus(SubscriptionStatus.ACTIVE);
+        sub.setPlan(PlanTier.LITE);
+        sub.setBillingPeriod(BillingPeriod.MONTHLY);
+        sub.setPendingPlan(PlanTier.PRO);
+        sub.setPendingBillingPeriod(BillingPeriod.YEARLY);
+        when(subscriptionRepository.findByGatewaySubId("sub_2")).thenReturn(Optional.of(sub));
+
+        service.handle("subscription.charged", "evt_2", root, raw);
+
+        assertThat(sub.getPlan()).isEqualTo(PlanTier.PRO);
+        assertThat(sub.getBillingPeriod()).isEqualTo(BillingPeriod.YEARLY);
+        assertThat(sub.getPendingPlan()).isNull();
+        assertThat(sub.getPendingBillingPeriod()).isNull();
+    }
+
+    @Test
     void ignoresAlreadyProcessedEvent() throws Exception {
         JsonNode root = charged("sub_1", 1_900_000_000L);
         byte[] raw = root.toString().getBytes(StandardCharsets.UTF_8);
