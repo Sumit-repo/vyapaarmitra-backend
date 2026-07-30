@@ -1,5 +1,6 @@
 package com.vyapaarmitra.api.invoice;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.UUID;
@@ -46,4 +47,30 @@ public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
         """)
     long countByTypeCreatedBetween(@Param("businessId") UUID businessId, @Param("type") BillType type,
                                    @Param("from") Instant from, @Param("to") Instant to);
+
+    /** Σ grandTotal of branch-scoped bills in a half-open window — dashboard sales KPIs. */
+    @Query("""
+        select coalesce(sum(i.grandTotal), 0) from Invoice i
+        where i.branchId in :branchIds and i.createdAt >= :from and i.createdAt < :to
+        """)
+    BigDecimal sumGrandTotalBetween(@Param("branchIds") Collection<UUID> branchIds,
+                                    @Param("from") Instant from, @Param("to") Instant to);
+
+    /** Count of branch-scoped bills created in a half-open window — dashboard "bills this month". */
+    @Query("""
+        select count(i) from Invoice i
+        where i.branchId in :branchIds and i.createdAt >= :from and i.createdAt < :to
+        """)
+    long countCreatedBetweenBranch(@Param("branchIds") Collection<UUID> branchIds,
+                                   @Param("from") Instant from, @Param("to") Instant to);
+
+    /** Count of branch-scoped bills of a given type in a half-open window — "… pakka". */
+    @Query("""
+        select count(i) from Invoice i
+        where i.branchId in :branchIds and i.billType = :type
+          and i.createdAt >= :from and i.createdAt < :to
+        """)
+    long countByTypeBetweenBranch(@Param("branchIds") Collection<UUID> branchIds,
+                                  @Param("type") BillType type,
+                                  @Param("from") Instant from, @Param("to") Instant to);
 }

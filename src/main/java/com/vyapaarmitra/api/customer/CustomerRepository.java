@@ -63,4 +63,34 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
         order by c.currentBalance desc
         """)
     List<Customer> topDebtors(@Param("branchIds") Collection<UUID> branchIds, Pageable pageable);
+
+    /**
+     * Count overdue customers whose oldest due date falls in [from, to) — one aging tier.
+     * Bucketing on the date bound (computed in the business tz by the caller) avoids any
+     * DATEDIFF/dialect ambiguity.
+     */
+    @Query("""
+        select count(c) from Customer c
+        where c.branchId in :branchIds and c.active = true and c.currentBalance > 0
+          and c.oldestDueDate >= :from and c.oldestDueDate < :to
+        """)
+    long countOverdueByDueDateRange(@Param("branchIds") Collection<UUID> branchIds,
+                                    @Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** Count overdue customers whose oldest due date is before :before — the oldest aging tier. */
+    @Query("""
+        select count(c) from Customer c
+        where c.branchId in :branchIds and c.active = true and c.currentBalance > 0
+          and c.oldestDueDate < :before
+        """)
+    long countOverdueOlderThan(@Param("branchIds") Collection<UUID> branchIds,
+                               @Param("before") LocalDate before);
+
+    /** Count active customers in a trust bucket — dashboard trust distribution (PRO). */
+    @Query("""
+        select count(c) from Customer c
+        where c.branchId in :branchIds and c.active = true and c.trustBucket = :bucket
+        """)
+    long countByTrustBucket(@Param("branchIds") Collection<UUID> branchIds,
+                            @Param("bucket") TrustBucket bucket);
 }

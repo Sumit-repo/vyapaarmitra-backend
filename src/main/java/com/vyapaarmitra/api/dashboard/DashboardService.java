@@ -5,6 +5,8 @@ import com.vyapaarmitra.api.business.BranchAccessService;
 import com.vyapaarmitra.api.common.AppTime;
 import com.vyapaarmitra.api.customer.CustomerRepository;
 import com.vyapaarmitra.api.customer.TrustBucket;
+import com.vyapaarmitra.api.invoice.BillType;
+import com.vyapaarmitra.api.invoice.InvoiceRepository;
 import com.vyapaarmitra.api.ledger.EntryType;
 import com.vyapaarmitra.api.ledger.LedgerEntryRepository;
 import com.vyapaarmitra.api.subscription.PlanService;
@@ -26,6 +28,7 @@ public class DashboardService {
     private final CustomerRepository customerRepository;
     private final SupplierRepository supplierRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
+    private final InvoiceRepository invoiceRepository;
     private final BranchAccessService branchAccessService;
     private final AppTime appTime;
     private final PlanService planService;
@@ -33,12 +36,14 @@ public class DashboardService {
     public DashboardService(CustomerRepository customerRepository,
                             SupplierRepository supplierRepository,
                             LedgerEntryRepository ledgerEntryRepository,
+                            InvoiceRepository invoiceRepository,
                             BranchAccessService branchAccessService,
                             AppTime appTime,
                             PlanService planService) {
         this.customerRepository = customerRepository;
         this.supplierRepository = supplierRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
+        this.invoiceRepository = invoiceRepository;
         this.branchAccessService = branchAccessService;
         this.appTime = appTime;
         this.planService = planService;
@@ -48,11 +53,26 @@ public class DashboardService {
                             TrustBucket trustBucket) {
     }
 
+    /** Customer counts per overdue-age tier (days past the oldest due date, business tz). */
+    public record OverdueAging(long upto7, long upto30, long upto90, long over90) {
+    }
+
+    /** Customer counts per trust bucket. Null on the wire when the plan lacks trust analytics. */
+    public record TrustDistribution(long good, long watch, long risky) {
+    }
+
     public record SummaryResponse(BigDecimal todayCredit, BigDecimal todayPayment,
                                   long todayEntries, BigDecimal totalOutstanding,
                                   BigDecimal totalOverdue, long overdueCustomers,
                                   BigDecimal totalPayable,
-                                  List<TopDebtor> topDebtors) {
+                                  List<TopDebtor> topDebtors,
+                                  // Business breadth beyond the khata — IST-computed, whole-ledger.
+                                  BigDecimal salesToday, BigDecimal salesMonth,
+                                  long billsMonth, long pakkaMonth,
+                                  BigDecimal payableToSuppliers,
+                                  OverdueAging overdueAging,
+                                  TrustDistribution trustDistribution,
+                                  Instant computedAt) {
     }
 
     /** One day of ledger activity for the collections trend chart. */
@@ -92,6 +112,33 @@ public class DashboardService {
                 includeTrust ? c.getTrustBucket() : null))
             .toList();
 
+        // Sales & billing over the IST calendar month (half-open [monthStart, monthEnd)).
+        LocalDate monthFirst = today.withDayOfMonth(1);
+        Instant monthStart = appTime.startOfDay(monthFirst);
+        Instant monthEnd = appTime.startOfDay(monthFirst.plusMonths(1));
+        BigDecimal salesToday = invoiceRepository.sumGrandTotalBetween(branchIds, from, to);
+        BigDecimal salesMonth = invoiceRepository.sumGrandTotalBetween(branchIds, monthStart, monthEnd);
+        long billsMonth = invoiceRepository.countCreatedBetweenBranch(branchIds, monthStart, monthEnd);
+        long pakkaMonth = invoiceRepository.countByTypeBetweenBranch(branchIds, BillType.PAKKA, monthStart, monthEnd);
+
+        BigDecimal payableToSuppliers = supplierRepository.totalPayable(branchIds);
+
+        // Overdue aging: bucket by the oldest due date against today's IST date bounds.
+        OverdueAging overdueAging = new OverdueAging(
+            customerRepository.countOverdueByDueDateRange(branchIds, today.minusDays(7), today),
+            customerRepository.countOverdueByDueDateRange(branchIds, today.minusDays(30), today.minusDays(7)),
+            customerRepository.countOverdueByDueDateRange(branchIds, today.minusDays(90), today.minusDays(30)),
+            customerRepository.countOverdueOlderThan(branchIds, today.minusDays(90)));
+
+        // Trust distribution — null (not zeros) when the plan isn't entitled, so the
+        // client keeps showing the upgrade card rather than an empty chart.
+        TrustDistribution trustDistribution = includeTrust
+            ? new TrustDistribution(
+                customerRepository.countByTrustBucket(branchIds, TrustBucket.GOOD),
+                customerRepository.countByTrustBucket(branchIds, TrustBucket.WATCH),
+                customerRepository.countByTrustBucket(branchIds, TrustBucket.RISKY))
+            : null;
+
         return new SummaryResponse(
             ledgerEntryRepository.sumByTypeBetween(branchIds, EntryType.CREDIT, from, to),
             ledgerEntryRepository.sumByTypeBetween(branchIds, EntryType.PAYMENT, from, to),
@@ -99,7 +146,10 @@ public class DashboardService {
             customerRepository.totalOutstanding(branchIds),
             customerRepository.totalOverdue(branchIds, today),
             customerRepository.countOverdue(branchIds, today),
-            supplierRepository.totalPayable(branchIds),
-            topDebtors);
+            payableToSuppliers,
+            topDebtors,
+            salesToday, salesMonth, billsMonth, pakkaMonth,
+            payableToSuppliers,
+            overdueAging, trustDistribution, Instant.now());
     }
 }
