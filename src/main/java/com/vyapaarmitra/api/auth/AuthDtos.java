@@ -55,10 +55,15 @@ public final class AuthDtos {
                                   @Size(max = 120) String branchName,
                                   @NotBlank @Size(max = 120) String ownerName,
                                   @NotBlank @Email @Size(max = 190) String email,
+                                  @NotBlank @Size(min = 7, max = 20) String phone,
                                   @NotBlank @Size(min = 8, max = 100) String password) {
     }
 
     public record RefreshRequest(@NotBlank String refreshToken) {
+    }
+
+    /** Switch the active business for an already-authenticated identity. */
+    public record SelectBusinessRequest(@NotNull UUID businessId) {
     }
 
     public record TokenResponse(String accessToken, String refreshToken, MeResponse user) {
@@ -66,5 +71,9 @@ public final class AuthDtos {
 
     public record MeResponse(UUID id, String email, String fullName, String businessName,
                              Role role, UUID businessId, Set<UUID> branchIds, PlanView plan) {
+    }
+
+    /** One business an identity can act in — powers the business switcher. */
+    public record BusinessMembershipView(UUID businessId, String businessName, Role role) {
     }
 }

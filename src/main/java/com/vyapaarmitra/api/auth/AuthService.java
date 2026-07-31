@@ -1,14 +1,20 @@
 package com.vyapaarmitra.api.auth;
 
+import com.vyapaarmitra.api.auth.AuthDtos.BusinessMembershipView;
 import com.vyapaarmitra.api.auth.AuthDtos.MeResponse;
 import com.vyapaarmitra.api.auth.AuthDtos.RegisterRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.TokenResponse;
+import com.vyapaarmitra.api.business.Business;
 import com.vyapaarmitra.api.business.BusinessProvisioningService;
+import com.vyapaarmitra.api.business.BusinessRepository;
 import com.vyapaarmitra.api.common.ApiException;
+import com.vyapaarmitra.api.membership.Membership;
+import com.vyapaarmitra.api.membership.MembershipService;
 import com.vyapaarmitra.api.user.User;
 import com.vyapaarmitra.api.user.UserRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -18,18 +24,23 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final BusinessRepository businessRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final BusinessProvisioningService provisioningService;
+    private final MembershipService membershipService;
     private final TokenIssuer tokenIssuer;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder,
-                       JwtService jwtService, BusinessProvisioningService provisioningService,
-                       TokenIssuer tokenIssuer) {
+    public AuthService(UserRepository userRepository, BusinessRepository businessRepository,
+                       PasswordEncoder passwordEncoder, JwtService jwtService,
+                       BusinessProvisioningService provisioningService,
+                       MembershipService membershipService, TokenIssuer tokenIssuer) {
         this.userRepository = userRepository;
+        this.businessRepository = businessRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.provisioningService = provisioningService;
+        this.membershipService = membershipService;
         this.tokenIssuer = tokenIssuer;
     }
 
@@ -44,8 +55,8 @@ public class AuthService {
             ? "Main Branch"
             : request.branchName().trim();
         User owner = provisioningService.provision(request.businessName().trim(), branchName,
-            request.ownerName().trim(), email, request.password());
-        return tokenIssuer.issue(owner);
+            request.ownerName().trim(), email, request.phone().trim(), request.password());
+        return tokenIssuer.issue(owner, membershipService.defaultActive(owner.getId()));
     }
 
     @Transactional(readOnly = true)
@@ -57,7 +68,8 @@ public class AuthService {
         if (user.getPasswordHash() == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
             throw ApiException.unauthorized("Invalid email or password");
         }
-        return tokenIssuer.issue(user);
+        // Credentials identify the person; the business is their default active membership.
+        return tokenIssuer.issue(user, membershipService.defaultActive(user.getId()));
     }
 
     @Transactional(readOnly = true)
@@ -78,13 +90,39 @@ public class AuthService {
         if (version == null || version != user.getTokenVersion()) {
             throw ApiException.unauthorized("Session revoked, please log in again");
         }
-        return tokenIssuer.issue(user);
+        // Re-issue for the same business — and refuse if that membership was deactivated.
+        UUID businessId = UUID.fromString(claims.get("bid", String.class));
+        Membership membership = membershipService.require(user.getId(), businessId);
+        return tokenIssuer.issue(user, membership);
+    }
+
+    /** Switch the active business: mint a fresh token pair scoped to another membership. */
+    @Transactional(readOnly = true)
+    public TokenResponse selectBusiness(AuthUser authUser, UUID businessId) {
+        User user = userRepository.findById(authUser.id())
+            .filter(User::isActive)
+            .orElseThrow(() -> ApiException.unauthorized("User no longer exists"));
+        Membership membership = membershipService.require(user.getId(), businessId);
+        return tokenIssuer.issue(user, membership);
+    }
+
+    /** The businesses this identity can act in — powers the switcher. */
+    @Transactional(readOnly = true)
+    public List<BusinessMembershipView> memberships(AuthUser authUser) {
+        return membershipService.activeFor(authUser.id()).stream()
+            .map(m -> new BusinessMembershipView(
+                m.getBusinessId(),
+                businessRepository.findById(m.getBusinessId()).map(Business::getName).orElse(null),
+                m.getRole()))
+            .toList();
     }
 
     @Transactional(readOnly = true)
     public MeResponse me(AuthUser authUser) {
         User user = userRepository.findById(authUser.id())
             .orElseThrow(() -> ApiException.unauthorized("User no longer exists"));
-        return tokenIssuer.toMe(user);
+        // Reflect the business the token is scoped to (from the active membership).
+        Membership membership = membershipService.require(user.getId(), authUser.businessId());
+        return tokenIssuer.toMe(user, membership);
     }
 }

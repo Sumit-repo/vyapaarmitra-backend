@@ -4,6 +4,7 @@ import com.vyapaarmitra.api.auth.AuthDtos.GoogleAuthRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.GoogleAuthResponse;
 import com.vyapaarmitra.api.auth.GoogleTokenVerifier.GoogleIdentity;
 import com.vyapaarmitra.api.business.BusinessProvisioningService;
+import com.vyapaarmitra.api.membership.MembershipService;
 import com.vyapaarmitra.api.user.User;
 import com.vyapaarmitra.api.user.UserRepository;
 import org.springframework.stereotype.Service;
@@ -21,13 +22,16 @@ public class GoogleAuthService {
     private final GoogleTokenVerifier verifier;
     private final UserRepository userRepository;
     private final BusinessProvisioningService provisioningService;
+    private final MembershipService membershipService;
     private final TokenIssuer tokenIssuer;
 
     public GoogleAuthService(GoogleTokenVerifier verifier, UserRepository userRepository,
-                             BusinessProvisioningService provisioningService, TokenIssuer tokenIssuer) {
+                             BusinessProvisioningService provisioningService,
+                             MembershipService membershipService, TokenIssuer tokenIssuer) {
         this.verifier = verifier;
         this.userRepository = userRepository;
         this.provisioningService = provisioningService;
+        this.membershipService = membershipService;
         this.tokenIssuer = tokenIssuer;
     }
 
@@ -65,6 +69,7 @@ public class GoogleAuthService {
     }
 
     private GoogleAuthResponse session(User user) {
-        return new GoogleAuthResponse(false, user.getEmail(), user.getFullName(), tokenIssuer.issue(user));
+        return new GoogleAuthResponse(false, user.getEmail(), user.getFullName(),
+            tokenIssuer.issue(user, membershipService.defaultActive(user.getId())));
     }
 }

@@ -1,5 +1,7 @@
 package com.vyapaarmitra.api.business;
 
+import com.vyapaarmitra.api.membership.Membership;
+import com.vyapaarmitra.api.membership.MembershipRepository;
 import com.vyapaarmitra.api.subscription.Subscription;
 import com.vyapaarmitra.api.subscription.SubscriptionRepository;
 import com.vyapaarmitra.api.template.MessageTemplate;
@@ -26,6 +28,7 @@ public class BusinessProvisioningService {
     private final BusinessRepository businessRepository;
     private final BranchRepository branchRepository;
     private final UserRepository userRepository;
+    private final MembershipRepository membershipRepository;
     private final MessageTemplateRepository templateRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final PasswordEncoder passwordEncoder;
@@ -35,12 +38,14 @@ public class BusinessProvisioningService {
     public BusinessProvisioningService(BusinessRepository businessRepository,
                                        BranchRepository branchRepository,
                                        UserRepository userRepository,
+                                       MembershipRepository membershipRepository,
                                        MessageTemplateRepository templateRepository,
                                        SubscriptionRepository subscriptionRepository,
                                        PasswordEncoder passwordEncoder) {
         this.businessRepository = businessRepository;
         this.branchRepository = branchRepository;
         this.userRepository = userRepository;
+        this.membershipRepository = membershipRepository;
         this.templateRepository = templateRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.passwordEncoder = passwordEncoder;
@@ -49,25 +54,25 @@ public class BusinessProvisioningService {
     /** Creates business + first branch + password owner + starter templates. Returns the owner. */
     @Transactional
     public User provision(String businessName, String branchName, String ownerName,
-                          String email, String rawPassword) {
-        return provisionInternal(businessName, branchName, ownerName, email,
+                          String email, String phone, String rawPassword) {
+        return provisionInternal(businessName, branchName, ownerName, email, phone,
             passwordEncoder.encode(rawPassword), null, false);
     }
 
     /**
      * Creates a business owned by a Google-verified account (no password, email
-     * already verified, Google subject linked). Returns the owner.
+     * already verified, Google subject linked). Phone is collected later. Returns the owner.
      */
     @Transactional
     public User provisionOAuth(String businessName, String branchName, String ownerName,
                                String email, String googleSub) {
-        return provisionInternal(businessName, branchName, ownerName, email,
+        return provisionInternal(businessName, branchName, ownerName, email, null,
             null, googleSub, true);
     }
 
     private User provisionInternal(String businessName, String branchName, String ownerName,
-                                   String email, String passwordHash, String googleSub,
-                                   boolean emailVerified) {
+                                   String email, String phone, String passwordHash,
+                                   String googleSub, boolean emailVerified) {
         Business business = new Business();
         business.setName(businessName);
         businessRepository.save(business);
@@ -78,14 +83,23 @@ public class BusinessProvisioningService {
         branchRepository.save(branch);
 
         User owner = new User();
+        // business_id / role on the user row are legacy (dropped in a later phase);
+        // the source of truth for access is the OWNER membership created below.
         owner.setBusinessId(business.getId());
         owner.setEmail(email.toLowerCase());
+        owner.setPhone(phone == null || phone.isBlank() ? null : phone.trim());
         owner.setPasswordHash(passwordHash);
         owner.setFullName(ownerName);
         owner.setRole(Role.OWNER);
         owner.setGoogleSub(googleSub);
         owner.setEmailVerified(emailVerified);
         userRepository.save(owner);
+
+        Membership ownerMembership = new Membership();
+        ownerMembership.setUserId(owner.getId());
+        ownerMembership.setBusinessId(business.getId());
+        ownerMembership.setRole(Role.OWNER);
+        membershipRepository.save(ownerMembership);
 
         seedStarterTemplates(business);
         seedTrialSubscription(business);

@@ -4,15 +4,16 @@ import com.vyapaarmitra.api.auth.AuthDtos.MeResponse;
 import com.vyapaarmitra.api.auth.AuthDtos.TokenResponse;
 import com.vyapaarmitra.api.business.Business;
 import com.vyapaarmitra.api.business.BusinessRepository;
+import com.vyapaarmitra.api.membership.Membership;
 import com.vyapaarmitra.api.subscription.PlanService;
 import com.vyapaarmitra.api.user.User;
 import java.util.Set;
 import org.springframework.stereotype.Component;
 
 /**
- * Single place that turns an authenticated {@link User} into an access/refresh
- * token pair + session payload. Shared by password login, OTP, and Google sign-in
- * so the three auth paths never drift.
+ * Single place that turns an authenticated {@link User} + the {@link Membership}
+ * they're acting under into an access/refresh token pair + session payload. Shared
+ * by password login, OTP, and Google sign-in so the three auth paths never drift.
  */
 @Component
 public class TokenIssuer {
@@ -28,19 +29,19 @@ public class TokenIssuer {
         this.planService = planService;
     }
 
-    public TokenResponse issue(User user) {
+    public TokenResponse issue(User user, Membership membership) {
         return new TokenResponse(
-            jwtService.createAccessToken(user),
-            jwtService.createRefreshToken(user),
-            toMe(user));
+            jwtService.createAccessToken(user, membership),
+            jwtService.createRefreshToken(user, membership),
+            toMe(user, membership));
     }
 
-    public MeResponse toMe(User user) {
-        String businessName = businessRepository.findById(user.getBusinessId())
+    public MeResponse toMe(User user, Membership membership) {
+        String businessName = businessRepository.findById(membership.getBusinessId())
             .map(Business::getName)
             .orElse(null);
         return new MeResponse(user.getId(), user.getEmail(), user.getFullName(), businessName,
-            user.getRole(), user.getBusinessId(), Set.copyOf(user.getBranchIds()),
-            planService.view(user.getBusinessId()));
+            membership.getRole(), membership.getBusinessId(), Set.copyOf(membership.getBranchIds()),
+            planService.view(membership.getBusinessId()));
     }
 }

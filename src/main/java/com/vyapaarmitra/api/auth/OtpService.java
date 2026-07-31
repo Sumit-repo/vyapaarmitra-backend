@@ -7,6 +7,7 @@ import com.vyapaarmitra.api.business.BusinessProvisioningService;
 import com.vyapaarmitra.api.common.ApiException;
 import com.vyapaarmitra.api.email.EmailSender;
 import com.vyapaarmitra.api.config.AppProperties;
+import com.vyapaarmitra.api.membership.MembershipService;
 import com.vyapaarmitra.api.user.User;
 import com.vyapaarmitra.api.user.UserRepository;
 import java.security.SecureRandom;
@@ -36,19 +37,22 @@ public class OtpService {
     private final PasswordEncoder passwordEncoder;
     private final EmailSender emailSender;
     private final BusinessProvisioningService provisioningService;
+    private final MembershipService membershipService;
     private final TokenIssuer tokenIssuer;
     private final int ttlMinutes;
     private final SecureRandom random = new SecureRandom();
 
     public OtpService(LoginCodeRepository loginCodeRepository, UserRepository userRepository,
                       PasswordEncoder passwordEncoder, EmailSender emailSender,
-                      BusinessProvisioningService provisioningService, TokenIssuer tokenIssuer,
+                      BusinessProvisioningService provisioningService,
+                      MembershipService membershipService, TokenIssuer tokenIssuer,
                       AppProperties props) {
         this.loginCodeRepository = loginCodeRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailSender = emailSender;
         this.provisioningService = provisioningService;
+        this.membershipService = membershipService;
         this.tokenIssuer = tokenIssuer;
         this.ttlMinutes = props.mail() != null && props.mail().otpTtlMinutes() > 0
             ? props.mail().otpTtlMinutes() : 10;
@@ -124,7 +128,7 @@ public class OtpService {
         if (!user.isEmailVerified()) {
             user.setEmailVerified(true);
         }
-        return tokenIssuer.issue(user);
+        return tokenIssuer.issue(user, membershipService.defaultActive(user.getId()));
     }
 
     private TokenResponse signup(OtpVerifyRequest req, String email) {
@@ -141,7 +145,7 @@ public class OtpService {
         User owner = provisioningService.provisionOAuth(req.businessName().trim(), branchName,
             req.ownerName().trim(), email, null);
         owner.setEmailVerified(true);
-        return tokenIssuer.issue(owner);
+        return tokenIssuer.issue(owner, membershipService.defaultActive(owner.getId()));
     }
 
     private String generateCode() {

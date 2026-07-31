@@ -1,5 +1,6 @@
-package com.vyapaarmitra.api.user;
+package com.vyapaarmitra.api.membership;
 
+import com.vyapaarmitra.api.user.Role;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
@@ -21,42 +22,28 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
+/**
+ * A person's role within one business. The bridge that lets a single identity
+ * (see {@link com.vyapaarmitra.api.user.User}) belong to many businesses over
+ * time. Owners deactivate a membership to remove someone from their shop without
+ * ever touching that person's identity or their access to other shops.
+ */
 @Entity
-@Table(name = "users")
+@Table(name = "memberships")
 @Getter
 @Setter
 @NoArgsConstructor
-public class User {
+public class Membership {
 
     @Id
     @UuidGenerator
     private UUID id;
 
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
+
     @Column(name = "business_id", nullable = false)
     private UUID businessId;
-
-    @Column(nullable = false, unique = true)
-    private String email;
-
-    // The person's mobile number — a global identity key (unique via a partial
-    // index in V9). Nullable at the DB for legacy rows; mandatory in the API for
-    // new signups. Not yet a login credential (phone-OTP is deferred).
-    @Column(name = "phone")
-    private String phone;
-
-    // Nullable: Google- or OTP-only accounts have no password.
-    @Column(name = "password_hash")
-    private String passwordHash;
-
-    @Column(name = "full_name", nullable = false)
-    private String fullName;
-
-    @Column(name = "email_verified", nullable = false)
-    private boolean emailVerified = false;
-
-    // Google subject id, set once an account is linked to a Google identity.
-    @Column(name = "google_sub", unique = true)
-    private String googleSub;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -65,11 +52,9 @@ public class User {
     @Column(nullable = false)
     private boolean active = true;
 
-    @Column(name = "token_version", nullable = false)
-    private int tokenVersion = 0;
-
+    // Branch scope for BRANCH_MANAGER / STAFF. OWNER implicitly has all branches.
     @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "user_branch_access", joinColumns = @JoinColumn(name = "user_id"))
+    @CollectionTable(name = "membership_branch_access", joinColumns = @JoinColumn(name = "membership_id"))
     @Column(name = "branch_id")
     private Set<UUID> branchIds = new HashSet<>();
 

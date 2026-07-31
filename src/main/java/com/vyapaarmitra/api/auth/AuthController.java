@@ -1,5 +1,6 @@
 package com.vyapaarmitra.api.auth;
 
+import com.vyapaarmitra.api.auth.AuthDtos.BusinessMembershipView;
 import com.vyapaarmitra.api.auth.AuthDtos.GoogleAuthRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.GoogleAuthResponse;
 import com.vyapaarmitra.api.auth.AuthDtos.LoginRequest;
@@ -9,8 +10,10 @@ import com.vyapaarmitra.api.auth.AuthDtos.OtpRequestResponse;
 import com.vyapaarmitra.api.auth.AuthDtos.OtpVerifyRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.RefreshRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.RegisterRequest;
+import com.vyapaarmitra.api.auth.AuthDtos.SelectBusinessRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.TokenResponse;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -67,6 +70,22 @@ public class AuthController {
     @PostMapping("/auth/refresh")
     public TokenResponse refresh(@Valid @RequestBody RefreshRequest request) {
         return authService.refresh(request.refreshToken());
+    }
+
+    // NOTE: these two sit outside /auth/** on purpose — /auth/** is permitAll, but
+    // these require a valid access token (they act on the authenticated identity).
+
+    /** Businesses the signed-in identity can act in (for the business switcher). */
+    @GetMapping("/memberships")
+    public List<BusinessMembershipView> memberships(@AuthenticationPrincipal AuthUser authUser) {
+        return authService.memberships(authUser);
+    }
+
+    /** Switch the active business — returns a fresh session scoped to it. */
+    @PostMapping("/session")
+    public TokenResponse selectBusiness(@AuthenticationPrincipal AuthUser authUser,
+                                        @Valid @RequestBody SelectBusinessRequest request) {
+        return authService.selectBusiness(authUser, request.businessId());
     }
 
     @GetMapping("/me")

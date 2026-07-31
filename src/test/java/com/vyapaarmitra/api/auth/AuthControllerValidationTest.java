@@ -88,11 +88,21 @@ class AuthControllerValidationTest {
     }
 
     @Test
-    void registerAcceptsValidRequest() throws Exception {
+    void registerRejectsMissingPhone() throws Exception {
         mockMvc.perform(post("/api/v1/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"businessName\":\"Sharma Store\",\"ownerName\":\"Ramesh\","
                     + "\"email\":\"owner@shop.com\",\"password\":\"secret123\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.details.phone").exists());
+    }
+
+    @Test
+    void registerAcceptsValidRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"businessName\":\"Sharma Store\",\"ownerName\":\"Ramesh\","
+                    + "\"email\":\"owner@shop.com\",\"phone\":\"9876543210\",\"password\":\"secret123\"}"))
             .andExpect(status().isCreated());
     }
 
@@ -163,5 +173,14 @@ class AuthControllerValidationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"idToken\":\"a.b.c\"}"))
             .andExpect(status().isOk());
+    }
+
+    @Test
+    void selectBusinessRejectsMissingBusinessId() throws Exception {
+        mockMvc.perform(post("/api/v1/session")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.details.businessId").exists());
     }
 }

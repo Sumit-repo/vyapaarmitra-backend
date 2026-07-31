@@ -47,7 +47,7 @@ public class BootstrapRunner implements ApplicationRunner {
         }
 
         User owner = provisioningService.provision(bootstrap.businessName(), bootstrap.branchName(),
-            bootstrap.ownerName(), bootstrap.ownerEmail(), bootstrap.ownerPassword());
+            bootstrap.ownerName(), bootstrap.ownerEmail(), null, bootstrap.ownerPassword());
 
         log.info("Bootstrap complete: business '{}' with owner '{}'",
             bootstrap.businessName(), owner.getEmail());
