@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -34,6 +35,15 @@ public class BusinessController {
         this.businessRepository = businessRepository;
         this.userRepository = userRepository;
         this.provisioningService = provisioningService;
+    }
+
+    /** The caller's active business (name + GSTIN). Any member can read it. */
+    @GetMapping
+    @Transactional(readOnly = true)
+    public BusinessResponse get(@AuthenticationPrincipal AuthUser authUser) {
+        Business business = businessRepository.findById(authUser.businessId())
+            .orElseThrow(() -> ApiException.notFound("Business not found"));
+        return BusinessResponse.from(business);
     }
 
     /**
