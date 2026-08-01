@@ -1,18 +1,10 @@
 package com.vyapaarmitra.api.user;
 
-import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
-import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 import java.time.Instant;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -21,6 +13,13 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
+/**
+ * A person (identity): their login credentials and profile. Their role and branch
+ * scope in each business live on {@code memberships}, not here — one identity can
+ * hold many memberships. The legacy per-business columns (business_id, role,
+ * user_branch_access) were dropped in V10 once auth had fully cut over to
+ * memberships.
+ */
 @Entity
 @Table(name = "users")
 @Getter
@@ -31,9 +30,6 @@ public class User {
     @Id
     @UuidGenerator
     private UUID id;
-
-    @Column(name = "business_id", nullable = false)
-    private UUID businessId;
 
     @Column(nullable = false, unique = true)
     private String email;
@@ -58,20 +54,22 @@ public class User {
     @Column(name = "google_sub", unique = true)
     private String googleSub;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Role role;
-
     @Column(nullable = false)
     private boolean active = true;
 
     @Column(name = "token_version", nullable = false)
     private int tokenVersion = 0;
 
-    @ElementCollection(fetch = FetchType.LAZY)
-    @CollectionTable(name = "user_branch_access", joinColumns = @JoinColumn(name = "user_id"))
-    @Column(name = "branch_id")
-    private Set<UUID> branchIds = new HashSet<>();
+    // True once this identity has consumed its single 14-day Pro trial (on the first
+    // business they created). Later businesses they create start on FREE — the trial is
+    // per-person, not per-business.
+    @Column(name = "trial_used", nullable = false)
+    private boolean trialUsed = false;
+
+    // Consent to the cross-business defaulter network (ToS). Reciprocity: only consenting
+    // identities can both contribute reports and see risk signals. See docs/defaulter-network.md.
+    @Column(name = "defaulter_network_consent", nullable = false)
+    private boolean defaulterNetworkConsent = false;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

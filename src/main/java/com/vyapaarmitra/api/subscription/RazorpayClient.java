@@ -41,13 +41,36 @@ public class RazorpayClient {
     public record RazorpaySubscription(String id, String shortUrl, String status) {
     }
 
-    /** Creates a subscription for a plan and returns the hosted checkout link. */
-    public RazorpaySubscription createSubscription(String planId, int totalCount, UUID businessId) {
+    /**
+     * Creates (or reuses) a Razorpay customer carrying the shop's GSTIN, so the tax
+     * invoice Razorpay raises for the SaaS charge is GST-valid. Returns the customer id,
+     * or null if the gateway couldn't create one (checkout still proceeds without it).
+     */
+    public String createCustomerWithGstin(String name, String gstin) {
         Map<String, Object> body = Map.of(
+            "name", name,
+            "gstin", gstin,
+            // Return the existing customer instead of erroring if one already matches.
+            "fail_existing", 0);
+        JsonNode res = post("/customers", body);
+        return res.path("id").asText(null);
+    }
+
+    /**
+     * Creates a subscription for a plan and returns the hosted checkout link.
+     * When {@code customerId} is non-null the subscription is tied to that customer
+     * (carrying its GSTIN onto the invoice).
+     */
+    public RazorpaySubscription createSubscription(String planId, int totalCount, UUID businessId,
+                                                   String customerId) {
+        Map<String, Object> body = new java.util.HashMap<>(Map.of(
             "plan_id", planId,
             "total_count", totalCount,
             "customer_notify", 1,
-            "notes", Map.of("businessId", businessId.toString()));
+            "notes", Map.of("businessId", businessId.toString())));
+        if (customerId != null && !customerId.isBlank()) {
+            body.put("customer_id", customerId);
+        }
         JsonNode res = post("/subscriptions", body);
         return new RazorpaySubscription(
             res.path("id").asText(null),

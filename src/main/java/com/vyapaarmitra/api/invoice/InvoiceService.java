@@ -11,6 +11,7 @@ import com.vyapaarmitra.api.invoice.InvoiceDtos.ItemRequest;
 import com.vyapaarmitra.api.ledger.EntryType;
 import com.vyapaarmitra.api.ledger.LedgerDtos.CreateEntryRequest;
 import com.vyapaarmitra.api.ledger.LedgerService;
+import com.vyapaarmitra.api.user.UserDirectory;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Set;
@@ -29,13 +30,16 @@ public class InvoiceService {
     private final InvoiceRepository invoiceRepository;
     private final BranchAccessService branchAccessService;
     private final LedgerService ledgerService;
+    private final UserDirectory userDirectory;
 
     public InvoiceService(InvoiceRepository invoiceRepository,
                           BranchAccessService branchAccessService,
-                          LedgerService ledgerService) {
+                          LedgerService ledgerService,
+                          UserDirectory userDirectory) {
         this.invoiceRepository = invoiceRepository;
         this.branchAccessService = branchAccessService;
         this.ledgerService = ledgerService;
+        this.userDirectory = userDirectory;
     }
 
     @Transactional(readOnly = true)
@@ -56,7 +60,13 @@ public class InvoiceService {
 
     @Transactional(readOnly = true)
     public InvoiceResponse get(AuthUser authUser, UUID id) {
-        return InvoiceResponse.from(loadAccessible(authUser, id));
+        return respond(loadAccessible(authUser, id));
+    }
+
+    /** Wraps an invoice with its resolved creator name (business-local). */
+    private InvoiceResponse respond(Invoice invoice) {
+        return InvoiceResponse.from(invoice,
+            userDirectory.name(invoice.getBusinessId(), invoice.getCreatedBy()));
     }
 
     @Transactional
@@ -110,7 +120,7 @@ public class InvoiceService {
             invoiceRepository.save(invoice);
         }
 
-        return InvoiceResponse.from(invoice);
+        return respond(invoice);
     }
 
     /**
@@ -123,7 +133,7 @@ public class InvoiceService {
         Invoice invoice = loadAccessible(authUser, id);
         BigDecimal balanceDue = invoice.getGrandTotal().subtract(invoice.getAmountReceived()).max(BigDecimal.ZERO);
         if (balanceDue.signum() <= 0) {
-            return InvoiceResponse.from(invoice);
+            return respond(invoice);
         }
         if (invoice.getLedgerEntryId() != null && invoice.getPartyCustomerId() != null) {
             ledgerService.createEntry(authUser, new CreateEntryRequest(
@@ -133,7 +143,7 @@ public class InvoiceService {
         invoice.setAmountReceived(invoice.getGrandTotal());
         invoice.setStatus(BillStatus.PAID);
         invoiceRepository.save(invoice);
-        return InvoiceResponse.from(invoice);
+        return respond(invoice);
     }
 
     @Transactional(readOnly = true)

@@ -10,6 +10,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
@@ -69,6 +70,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
             .body(errorBody("INVALID_PARAMETER",
                 "Invalid value for parameter '" + ex.getName() + "'", null));
+    }
+
+    /** A required query/form parameter was omitted — a client error, not a 500. */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    ResponseEntity<Map<String, Object>> handleMissingParam(MissingServletRequestParameterException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(errorBody("MISSING_PARAMETER",
+                "Missing required parameter '" + ex.getParameterName() + "'", null));
     }
 
     @ExceptionHandler(AuthorizationDeniedException.class)

@@ -61,9 +61,6 @@ public class UserService {
             user.setPhone(request.phone().trim());
             user.setPasswordHash(passwordEncoder.encode(request.password()));
             user.setFullName(request.fullName().trim());
-            // Legacy columns (dropped in a later phase); the membership is the source of truth.
-            user.setBusinessId(authUser.businessId());
-            user.setRole(request.role());
             userRepository.save(user);
         } else if (membershipRepository.findByUserIdAndBusinessId(user.getId(), authUser.businessId())
                 .isPresent()) {

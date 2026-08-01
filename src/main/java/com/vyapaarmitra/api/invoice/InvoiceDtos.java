@@ -65,9 +65,11 @@ public final class InvoiceDtos {
                                   BigDecimal taxTotal, BigDecimal cgst, BigDecimal sgst, BigDecimal igst,
                                   BigDecimal grandTotal, BigDecimal amountReceived, BigDecimal balanceDue,
                                   PaymentMode paymentMode, BillStatus status, String notes,
-                                  UUID ledgerEntryId, Instant createdAt) {
+                                  UUID ledgerEntryId, Instant createdAt,
+                                  UUID createdBy, String createdByName) {
 
-        public static InvoiceResponse from(Invoice i) {
+        /** {@code createdByName} is the resolved name of whoever raised the bill (business-local). */
+        public static InvoiceResponse from(Invoice i, String createdByName) {
             BigDecimal tax = i.getTaxTotal();
             boolean inter = i.isInterState();
             BigDecimal cgst = inter ? BigDecimal.ZERO : tax.divide(BigDecimal.valueOf(2), 2, java.math.RoundingMode.HALF_UP);
@@ -79,7 +81,7 @@ public final class InvoiceDtos {
                 i.getSellerGstin(), i.getPlaceOfSupply(), inter, i.getItems(), i.getDiscount(),
                 i.getSubtotal(), tax, cgst, sgst, igst, i.getGrandTotal(), i.getAmountReceived(),
                 balanceDue, i.getPaymentMode(), i.getStatus(), i.getNotes(), i.getLedgerEntryId(),
-                i.getCreatedAt());
+                i.getCreatedAt(), i.getCreatedBy(), createdByName);
         }
     }
 }

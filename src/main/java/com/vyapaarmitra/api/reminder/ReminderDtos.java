@@ -24,11 +24,13 @@ public final class ReminderDtos {
 
     public record ReminderResponse(UUID id, UUID customerId, UUID templateId, String channel,
                                    ReminderOutcome outcome, LocalDate promisedDate, String note,
-                                   Instant createdAt) {
+                                   Instant createdAt, UUID createdBy, String createdByName) {
 
-        public static ReminderResponse from(ReminderLog r) {
+        /** {@code createdByName} is the resolved name of whoever logged the reminder (business-local). */
+        public static ReminderResponse from(ReminderLog r, String createdByName) {
             return new ReminderResponse(r.getId(), r.getCustomerId(), r.getTemplateId(),
-                r.getChannel(), r.getOutcome(), r.getPromisedDate(), r.getNote(), r.getCreatedAt());
+                r.getChannel(), r.getOutcome(), r.getPromisedDate(), r.getNote(), r.getCreatedAt(),
+                r.getCreatedBy(), createdByName);
         }
     }
 }

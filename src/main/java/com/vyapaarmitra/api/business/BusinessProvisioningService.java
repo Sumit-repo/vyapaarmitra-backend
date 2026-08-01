@@ -2,8 +2,10 @@ package com.vyapaarmitra.api.business;
 
 import com.vyapaarmitra.api.membership.Membership;
 import com.vyapaarmitra.api.membership.MembershipRepository;
+import com.vyapaarmitra.api.subscription.PlanTier;
 import com.vyapaarmitra.api.subscription.Subscription;
 import com.vyapaarmitra.api.subscription.SubscriptionRepository;
+import com.vyapaarmitra.api.subscription.SubscriptionStatus;
 import com.vyapaarmitra.api.template.MessageTemplate;
 import com.vyapaarmitra.api.template.MessageTemplateRepository;
 import com.vyapaarmitra.api.template.TemplateChannel;
@@ -54,25 +56,56 @@ public class BusinessProvisioningService {
     /** Creates business + first branch + password owner + starter templates. Returns the owner. */
     @Transactional
     public User provision(String businessName, String branchName, String ownerName,
-                          String email, String phone, String rawPassword) {
+                          String email, String phone, String rawPassword,
+                          boolean defaulterNetworkConsent) {
         return provisionInternal(businessName, branchName, ownerName, email, phone,
-            passwordEncoder.encode(rawPassword), null, false);
+            passwordEncoder.encode(rawPassword), null, false, defaulterNetworkConsent);
     }
 
     /**
      * Creates a business owned by a Google-verified account (no password, email
      * already verified, Google subject linked). Phone is collected later. Returns the owner.
+     * OAuth signups can't tick the network-consent box in-flow, so it defaults off.
      */
     @Transactional
     public User provisionOAuth(String businessName, String branchName, String ownerName,
                                String email, String googleSub) {
         return provisionInternal(businessName, branchName, ownerName, email, null,
-            null, googleSub, true);
+            null, googleSub, true, false);
     }
 
     private User provisionInternal(String businessName, String branchName, String ownerName,
                                    String email, String phone, String passwordHash,
-                                   String googleSub, boolean emailVerified) {
+                                   String googleSub, boolean emailVerified,
+                                   boolean defaulterNetworkConsent) {
+        User owner = new User();
+        // The source of truth for access is the OWNER membership created below; the
+        // user row is just the identity (legacy business_id/role were dropped in V10).
+        owner.setEmail(email.toLowerCase());
+        owner.setPhone(phone == null || phone.isBlank() ? null : phone.trim());
+        owner.setPasswordHash(passwordHash);
+        owner.setFullName(ownerName);
+        owner.setGoogleSub(googleSub);
+        owner.setEmailVerified(emailVerified);
+        owner.setDefaulterNetworkConsent(defaulterNetworkConsent);
+        userRepository.save(owner);
+
+        provisionBusinessFor(owner, businessName, branchName);
+        return owner;
+    }
+
+    /**
+     * Stands up another business owned by an EXISTING identity: business + first branch +
+     * OWNER membership + starter templates + subscription. The subscription is a 14-day Pro
+     * trial only if this person hasn't used their one trial yet — otherwise it starts FREE.
+     * Returns the new business.
+     */
+    @Transactional
+    public Business provisionAdditionalBusiness(User owner, String businessName, String branchName) {
+        return provisionBusinessFor(owner, businessName, branchName);
+    }
+
+    private Business provisionBusinessFor(User owner, String businessName, String branchName) {
         Business business = new Business();
         business.setName(businessName);
         businessRepository.save(business);
@@ -82,19 +115,6 @@ public class BusinessProvisioningService {
         branch.setName(branchName);
         branchRepository.save(branch);
 
-        User owner = new User();
-        // business_id / role on the user row are legacy (dropped in a later phase);
-        // the source of truth for access is the OWNER membership created below.
-        owner.setBusinessId(business.getId());
-        owner.setEmail(email.toLowerCase());
-        owner.setPhone(phone == null || phone.isBlank() ? null : phone.trim());
-        owner.setPasswordHash(passwordHash);
-        owner.setFullName(ownerName);
-        owner.setRole(Role.OWNER);
-        owner.setGoogleSub(googleSub);
-        owner.setEmailVerified(emailVerified);
-        userRepository.save(owner);
-
         Membership ownerMembership = new Membership();
         ownerMembership.setUserId(owner.getId());
         ownerMembership.setBusinessId(business.getId());
@@ -102,15 +122,27 @@ public class BusinessProvisioningService {
         membershipRepository.save(ownerMembership);
 
         seedStarterTemplates(business);
-        seedTrialSubscription(business);
-        return owner;
+        seedSubscription(business, owner);
+        return business;
     }
 
-    /** Every new business starts on a 14-day Pro trial, no card required. */
-    private void seedTrialSubscription(Business business) {
+    /**
+     * First business a person creates gets the 14-day Pro trial (marking the identity's
+     * one trial as used); every business after that starts FREE (status EXPIRED, no trial
+     * window) so nobody farms trials by opening shops.
+     */
+    private void seedSubscription(Business business, User owner) {
         Subscription sub = new Subscription();
         sub.setBusinessId(business.getId());
-        sub.setTrialEndsAt(Instant.now().plus(TRIAL_DAYS, ChronoUnit.DAYS));
+        if (owner.isTrialUsed()) {
+            sub.setStatus(SubscriptionStatus.EXPIRED);
+            sub.setPlan(PlanTier.FREE);
+            // trialEndsAt stays null → effectivePlan yields FREE.
+        } else {
+            sub.setTrialEndsAt(Instant.now().plus(TRIAL_DAYS, ChronoUnit.DAYS));
+            owner.setTrialUsed(true);
+            userRepository.save(owner);
+        }
         subscriptionRepository.save(sub);
     }
 

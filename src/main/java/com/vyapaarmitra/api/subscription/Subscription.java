@@ -59,7 +59,9 @@ public class Subscription {
     @Column(name = "pending_billing_period")
     private BillingPeriod pendingBillingPeriod;
 
-    @Column(name = "trial_ends_at", nullable = false)
+    // Null when the business never had a trial (created by an identity that already used
+    // its one trial). effectivePlan/view guard on null → FREE entitlements.
+    @Column(name = "trial_ends_at")
     private Instant trialEndsAt;
 
     @Column(name = "current_period_end")

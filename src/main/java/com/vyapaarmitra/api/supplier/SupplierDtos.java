@@ -71,12 +71,18 @@ public final class SupplierDtos {
 
     public record SupplierEntryResponse(UUID id, UUID supplierId, EntryType entryType,
                                         BigDecimal amount, String method, String note,
-                                        LocalDate dueDate, Instant entryAt, BigDecimal balanceAfter) {
+                                        LocalDate dueDate, Instant entryAt, BigDecimal balanceAfter,
+                                        UUID createdBy, String createdByName) {
 
-        /** {@code balanceAfter} is the running balance after this entry (server-computed). */
-        public static SupplierEntryResponse from(SupplierLedgerEntry e, BigDecimal balanceAfter) {
+        /**
+         * {@code balanceAfter} is the running balance after this entry (server-computed);
+         * {@code createdByName} is the resolved name of whoever recorded it (business-local).
+         */
+        public static SupplierEntryResponse from(SupplierLedgerEntry e, BigDecimal balanceAfter,
+                                                 String createdByName) {
             return new SupplierEntryResponse(e.getId(), e.getSupplierId(), e.getEntryType(),
-                e.getAmount(), e.getMethod(), e.getNote(), e.getDueDate(), e.getEntryAt(), balanceAfter);
+                e.getAmount(), e.getMethod(), e.getNote(), e.getDueDate(), e.getEntryAt(), balanceAfter,
+                e.getCreatedBy(), createdByName);
         }
     }
 

@@ -27,6 +27,11 @@ public class Business {
     @Column(nullable = false)
     private String name;
 
+    // Shop GSTIN (15-char), null when not GST-registered. Passed to Razorpay so the
+    // SaaS-charge invoice is GST-valid.
+    @Column(name = "gstin")
+    private String gstin;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;

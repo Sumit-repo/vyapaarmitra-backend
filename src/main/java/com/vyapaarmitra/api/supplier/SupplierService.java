@@ -14,11 +14,13 @@ import com.vyapaarmitra.api.supplier.SupplierDtos.SupplierEntryResponse;
 import com.vyapaarmitra.api.supplier.SupplierDtos.SupplierListItem;
 import com.vyapaarmitra.api.supplier.SupplierDtos.SupplierResponse;
 import com.vyapaarmitra.api.supplier.SupplierDtos.UpdateSupplierRequest;
+import com.vyapaarmitra.api.user.UserDirectory;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -36,15 +38,18 @@ public class SupplierService {
     private final SupplierRepository supplierRepository;
     private final SupplierLedgerEntryRepository entryRepository;
     private final BranchAccessService branchAccessService;
+    private final UserDirectory userDirectory;
     private final AppTime appTime;
 
     public SupplierService(SupplierRepository supplierRepository,
                            SupplierLedgerEntryRepository entryRepository,
                            BranchAccessService branchAccessService,
+                           UserDirectory userDirectory,
                            AppTime appTime) {
         this.supplierRepository = supplierRepository;
         this.entryRepository = entryRepository;
         this.branchAccessService = branchAccessService;
+        this.userDirectory = userDirectory;
         this.appTime = appTime;
     }
 
@@ -119,9 +124,12 @@ public class SupplierService {
             BigDecimal balanceAfterTop = supplier.getCurrentBalance().subtract(newerSum);
             List<BigDecimal> signed = content.stream().map(SupplierService::signed).toList();
             List<BigDecimal> balances = LedgerMath.runningBalancesDesc(signed, balanceAfterTop);
+            Map<UUID, String> names = userDirectory.namesByBusiness(supplier.getBusinessId(),
+                content.stream().map(SupplierLedgerEntry::getCreatedBy).toList());
             items = new ArrayList<>(content.size());
             for (int i = 0; i < content.size(); i++) {
-                items.add(SupplierEntryResponse.from(content.get(i), balances.get(i)));
+                SupplierLedgerEntry e = content.get(i);
+                items.add(SupplierEntryResponse.from(e, balances.get(i), names.get(e.getCreatedBy())));
             }
         }
         return new PageResponse<>(items, entries.getNumber(), entries.getSize(),
@@ -158,8 +166,9 @@ public class SupplierService {
         supplierRepository.save(supplier);
 
         // The new entry is the newest, so its running balance is the supplier's fresh balance.
+        String createdByName = userDirectory.name(supplier.getBusinessId(), entry.getCreatedBy());
         return new SupplierEntryCreatedResponse(
-            SupplierEntryResponse.from(entry, supplier.getCurrentBalance()),
+            SupplierEntryResponse.from(entry, supplier.getCurrentBalance(), createdByName),
             SupplierResponse.from(supplier));
     }
 

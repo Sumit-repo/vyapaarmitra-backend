@@ -30,10 +30,12 @@ DECLARE
   v_credit_due  date;
   r             record;
 BEGIN
-  -- Resolve the owner + their business + first branch.
-  SELECT id, business_id INTO v_owner, v_business
-  FROM users
-  WHERE email = v_owner_email AND role = 'OWNER'
+  -- Resolve the owner + their business + first branch. Role/business live on the
+  -- membership since V10 dropped the legacy users.business_id / users.role columns.
+  SELECT u.id, m.business_id INTO v_owner, v_business
+  FROM users u
+  JOIN memberships m ON m.user_id = u.id
+  WHERE u.email = v_owner_email AND m.role = 'OWNER'
   LIMIT 1;
 
   IF v_owner IS NULL THEN
@@ -174,8 +176,9 @@ BEGIN
     RETURN;
   END IF;
 
-  SELECT id, business_id INTO v_owner, v_business
-  FROM users WHERE email = v_owner_email AND role = 'OWNER' LIMIT 1;
+  SELECT u.id, m.business_id INTO v_owner, v_business
+  FROM users u JOIN memberships m ON m.user_id = u.id
+  WHERE u.email = v_owner_email AND m.role = 'OWNER' LIMIT 1;
   IF v_owner IS NULL THEN
     RAISE EXCEPTION 'Owner % not found; bootstrap first.', v_owner_email;
   END IF;

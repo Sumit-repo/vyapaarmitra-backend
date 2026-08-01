@@ -1,6 +1,8 @@
 package com.vyapaarmitra.api.subscription;
 
 import com.vyapaarmitra.api.auth.AuthUser;
+import com.vyapaarmitra.api.business.Business;
+import com.vyapaarmitra.api.business.BusinessRepository;
 import com.vyapaarmitra.api.common.ApiException;
 import com.vyapaarmitra.api.subscription.BillingDtos.CheckoutResponse;
 import com.vyapaarmitra.api.subscription.BillingDtos.InvoiceItem;
@@ -28,13 +30,16 @@ public class BillingService {
     private final PlanService planService;
     private final RazorpayClient razorpayClient;
     private final RazorpayProperties razorpayProperties;
+    private final BusinessRepository businessRepository;
 
     public BillingService(SubscriptionRepository subscriptionRepository, PlanService planService,
-                          RazorpayClient razorpayClient, RazorpayProperties razorpayProperties) {
+                          RazorpayClient razorpayClient, RazorpayProperties razorpayProperties,
+                          BusinessRepository businessRepository) {
         this.subscriptionRepository = subscriptionRepository;
         this.planService = planService;
         this.razorpayClient = razorpayClient;
         this.razorpayProperties = razorpayProperties;
+        this.businessRepository = businessRepository;
     }
 
     @Transactional
@@ -52,9 +57,13 @@ public class BillingService {
                 "This plan isn't available for purchase right now.");
         }
 
+        // If the shop is GST-registered, pre-create a Razorpay customer carrying the
+        // GSTIN and tie the subscription to it, so the SaaS-charge invoice is GST-valid.
+        String customerId = gstinCustomerId(authUser.businessId());
+
         int totalCount = period == BillingPeriod.YEARLY ? YEARLY_CYCLES : MONTHLY_CYCLES;
         RazorpaySubscription created =
-            razorpayClient.createSubscription(planId, totalCount, authUser.businessId());
+            razorpayClient.createSubscription(planId, totalCount, authUser.businessId(), customerId);
 
         // Store the intent ONLY. plan/billingPeriod are applied on the verified
         // subscription.activated/charged webhook (RazorpayWebhookService) — never here.
@@ -64,11 +73,27 @@ public class BillingService {
         Subscription sub = planService.getOrCreate(authUser.businessId());
         sub.setGateway("RAZORPAY");
         sub.setGatewaySubId(created.id());
+        if (customerId != null) {
+            sub.setGatewayCustomerId(customerId);
+        }
         sub.setPendingPlan(plan);
         sub.setPendingBillingPeriod(period);
         subscriptionRepository.save(sub);
 
         return new CheckoutResponse(created.id(), created.shortUrl(), razorpayProperties.keyId());
+    }
+
+    /**
+     * If the business has a GSTIN, ensures a Razorpay customer exists for it and returns
+     * its id (so the invoice carries the GSTIN). Returns null when the shop isn't GST-
+     * registered — checkout then proceeds with a gateway-created customer as before.
+     */
+    private String gstinCustomerId(java.util.UUID businessId) {
+        Business business = businessRepository.findById(businessId).orElse(null);
+        if (business == null || business.getGstin() == null || business.getGstin().isBlank()) {
+            return null;
+        }
+        return razorpayClient.createCustomerWithGstin(business.getName(), business.getGstin());
     }
 
     /** GST invoices/receipts for the caller's subscription — empty until they've paid. */

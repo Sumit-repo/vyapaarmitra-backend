@@ -56,7 +56,9 @@ public final class AuthDtos {
                                   @NotBlank @Size(max = 120) String ownerName,
                                   @NotBlank @Email @Size(max = 190) String email,
                                   @NotBlank @Size(min = 7, max = 20) String phone,
-                                  @NotBlank @Size(min = 8, max = 100) String password) {
+                                  @NotBlank @Size(min = 8, max = 100) String password,
+                                  // Opt-in to the defaulter network at signup (ToS). Null → false.
+                                  Boolean defaulterNetworkConsent) {
     }
 
     public record RefreshRequest(@NotBlank String refreshToken) {

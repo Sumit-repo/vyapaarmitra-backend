@@ -7,15 +7,18 @@ import com.vyapaarmitra.api.customer.Customer;
 import com.vyapaarmitra.api.customer.CustomerDtos.CustomerResponse;
 import com.vyapaarmitra.api.customer.CustomerRepository;
 import com.vyapaarmitra.api.customer.CustomerService;
+import com.vyapaarmitra.api.defaulter.DefaulterService;
 import com.vyapaarmitra.api.ledger.LedgerDtos.CreateEntryRequest;
 import com.vyapaarmitra.api.ledger.LedgerDtos.EntryCreatedResponse;
 import com.vyapaarmitra.api.ledger.LedgerDtos.EntryResponse;
 import com.vyapaarmitra.api.trust.TrustScoreService;
+import com.vyapaarmitra.api.user.UserDirectory;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -32,17 +35,23 @@ public class LedgerService {
     private final CustomerRepository customerRepository;
     private final CustomerService customerService;
     private final TrustScoreService trustScoreService;
+    private final UserDirectory userDirectory;
+    private final DefaulterService defaulterService;
     private final AppTime appTime;
 
     public LedgerService(LedgerEntryRepository ledgerEntryRepository,
                          CustomerRepository customerRepository,
                          CustomerService customerService,
                          TrustScoreService trustScoreService,
+                         UserDirectory userDirectory,
+                         DefaulterService defaulterService,
                          AppTime appTime) {
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.customerRepository = customerRepository;
         this.customerService = customerService;
         this.trustScoreService = trustScoreService;
+        this.userDirectory = userDirectory;
+        this.defaulterService = defaulterService;
         this.appTime = appTime;
     }
 
@@ -70,9 +79,14 @@ public class LedgerService {
         recomputeCustomerState(customer);
         customerRepository.save(customer);
 
+        // Pay-to-clear: a payment that settles the balance lifts any defaulter report.
+        defaulterService.clearForCustomerIfSettled(customer);
+
         // The new entry is the newest, so its running balance is the customer's fresh balance.
+        String createdByName = userDirectory.name(customer.getBusinessId(), entry.getCreatedBy());
         return new EntryCreatedResponse(
-            EntryResponse.from(entry, customer.getCurrentBalance()), CustomerResponse.from(customer));
+            EntryResponse.from(entry, customer.getCurrentBalance(), createdByName),
+            CustomerResponse.from(customer));
     }
 
     @Transactional(readOnly = true)
@@ -92,9 +106,12 @@ public class LedgerService {
             BigDecimal balanceAfterTop = customer.getCurrentBalance().subtract(newerSum);
             List<BigDecimal> signed = content.stream().map(LedgerService::signed).toList();
             List<BigDecimal> balances = LedgerMath.runningBalancesDesc(signed, balanceAfterTop);
+            Map<UUID, String> names = userDirectory.namesByBusiness(customer.getBusinessId(),
+                content.stream().map(LedgerEntry::getCreatedBy).toList());
             items = new ArrayList<>(content.size());
             for (int i = 0; i < content.size(); i++) {
-                items.add(EntryResponse.from(content.get(i), balances.get(i)));
+                LedgerEntry e = content.get(i);
+                items.add(EntryResponse.from(e, balances.get(i), names.get(e.getCreatedBy())));
             }
         }
         return new PageResponse<>(items, entries.getNumber(), entries.getSize(),

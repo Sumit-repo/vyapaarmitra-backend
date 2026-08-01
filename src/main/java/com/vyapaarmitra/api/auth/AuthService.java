@@ -55,7 +55,8 @@ public class AuthService {
             ? "Main Branch"
             : request.branchName().trim();
         User owner = provisioningService.provision(request.businessName().trim(), branchName,
-            request.ownerName().trim(), email, request.phone().trim(), request.password());
+            request.ownerName().trim(), email, request.phone().trim(), request.password(),
+            Boolean.TRUE.equals(request.defaulterNetworkConsent()));
         return tokenIssuer.issue(owner, membershipService.defaultActive(owner.getId()));
     }
 

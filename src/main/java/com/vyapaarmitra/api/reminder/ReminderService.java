@@ -7,8 +7,12 @@ import com.vyapaarmitra.api.customer.Customer;
 import com.vyapaarmitra.api.customer.CustomerService;
 import com.vyapaarmitra.api.reminder.ReminderDtos.CreateReminderRequest;
 import com.vyapaarmitra.api.reminder.ReminderDtos.ReminderResponse;
+import com.vyapaarmitra.api.user.UserDirectory;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -22,13 +26,16 @@ public class ReminderService {
     private final ReminderLogRepository reminderLogRepository;
     private final CustomerService customerService;
     private final BranchAccessService branchAccessService;
+    private final UserDirectory userDirectory;
 
     public ReminderService(ReminderLogRepository reminderLogRepository,
                            CustomerService customerService,
-                           BranchAccessService branchAccessService) {
+                           BranchAccessService branchAccessService,
+                           UserDirectory userDirectory) {
         this.reminderLogRepository = reminderLogRepository;
         this.customerService = customerService;
         this.branchAccessService = branchAccessService;
+        this.userDirectory = userDirectory;
     }
 
     @Transactional
@@ -44,7 +51,9 @@ public class ReminderService {
         log.setPromisedDate(request.promisedDate());
         log.setNote(request.note());
         log.setCreatedBy(authUser.id());
-        return ReminderResponse.from(reminderLogRepository.save(log));
+        ReminderLog saved = reminderLogRepository.save(log);
+        return ReminderResponse.from(saved,
+            userDirectory.name(saved.getBusinessId(), saved.getCreatedBy()));
     }
 
     @Transactional(readOnly = true)
@@ -52,15 +61,17 @@ public class ReminderService {
                                                int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(0, page),
             Math.min(Math.max(1, size), MAX_PAGE_SIZE));
+        Page<ReminderLog> logs;
         if (customerId != null) {
             customerService.loadAccessible(authUser, customerId);
-            return PageResponse.of(reminderLogRepository
-                .findByCustomerIdOrderByCreatedAtDesc(customerId, pageable)
-                .map(ReminderResponse::from));
+            logs = reminderLogRepository.findByCustomerIdOrderByCreatedAtDesc(customerId, pageable);
+        } else {
+            Set<UUID> branchIds = branchAccessService.scope(authUser, branchId);
+            logs = reminderLogRepository.findByBranchIdInOrderByCreatedAtDesc(branchIds, pageable);
         }
-        Set<UUID> branchIds = branchAccessService.scope(authUser, branchId);
-        return PageResponse.of(reminderLogRepository
-            .findByBranchIdInOrderByCreatedAtDesc(branchIds, pageable)
-            .map(ReminderResponse::from));
+        List<ReminderLog> content = logs.getContent();
+        Map<UUID, String> names = userDirectory.namesByBusiness(authUser.businessId(),
+            content.stream().map(ReminderLog::getCreatedBy).toList());
+        return PageResponse.of(logs.map(r -> ReminderResponse.from(r, names.get(r.getCreatedBy()))));
     }
 }
