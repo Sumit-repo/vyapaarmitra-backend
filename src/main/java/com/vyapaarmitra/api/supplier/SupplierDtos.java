@@ -34,11 +34,12 @@ public final class SupplierDtos {
 
     /** Compact list shape — small payloads for slow shop connections. */
     public record SupplierListItem(UUID id, String name, String phone, String address,
-                                   Instant lastActivityAt, BigDecimal currentBalance) {
+                                   Instant lastActivityAt, BigDecimal currentBalance,
+                                   LocalDate oldestDueDate) {
 
         public static SupplierListItem from(Supplier s) {
             return new SupplierListItem(s.getId(), s.getName(), s.getPhone(), s.getAddress(),
-                s.getUpdatedAt(), s.getCurrentBalance());
+                s.getUpdatedAt(), s.getCurrentBalance(), s.getOldestDueDate());
         }
     }
 
