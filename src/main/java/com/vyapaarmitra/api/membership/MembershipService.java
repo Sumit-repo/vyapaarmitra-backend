@@ -28,15 +28,38 @@ public class MembershipService {
     }
 
     /**
-     * The membership to land on at login: the most recently created active one
-     * (feels like "last shop used"). Throws if the identity has no active access.
+     * The membership to land on at login. Prefers the identity's chosen default business
+     * ({@code preferredBusinessId}, when it's still an active membership); otherwise the
+     * most recently created active one (feels like "last shop used"). Throws if the identity
+     * has no active access.
      */
     @Transactional(readOnly = true)
-    public Membership defaultActive(UUID userId) {
-        return activeFor(userId).stream()
+    public Membership defaultActive(UUID userId, UUID preferredBusinessId) {
+        List<Membership> active = activeFor(userId);
+        if (preferredBusinessId != null) {
+            Membership preferred = active.stream()
+                .filter(m -> m.getBusinessId().equals(preferredBusinessId))
+                .findFirst()
+                .orElse(null);
+            if (preferred != null) {
+                return preferred;
+            }
+        }
+        return active.stream()
             .max(Comparator.comparing(Membership::getCreatedAt))
             .orElseThrow(() -> ApiException.forbidden(
                 "NO_BUSINESS_ACCESS", "This account has no active business access."));
+    }
+
+    /**
+     * Persist the acting membership's preferred branch (null clears it). Branch-access
+     * validation is the caller's job (see {@code BranchAccessService}); this only writes.
+     */
+    @Transactional
+    public void setPreferredBranch(UUID userId, UUID businessId, UUID branchId) {
+        Membership membership = require(userId, businessId);
+        membership.setPreferredBranchId(branchId);
+        membershipRepository.save(membership);
     }
 
     /**

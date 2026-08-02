@@ -128,7 +128,8 @@ public class OtpService {
         if (!user.isEmailVerified()) {
             user.setEmailVerified(true);
         }
-        return tokenIssuer.issue(user, membershipService.defaultActive(user.getId()));
+        return tokenIssuer.issue(user,
+            membershipService.defaultActive(user.getId(), user.getDefaultBusinessId()));
     }
 
     private TokenResponse signup(OtpVerifyRequest req, String email) {
@@ -145,7 +146,8 @@ public class OtpService {
         User owner = provisioningService.provisionOAuth(req.businessName().trim(), branchName,
             req.ownerName().trim(), email, null);
         owner.setEmailVerified(true);
-        return tokenIssuer.issue(owner, membershipService.defaultActive(owner.getId()));
+        return tokenIssuer.issue(owner,
+            membershipService.defaultActive(owner.getId(), owner.getDefaultBusinessId()));
     }
 
     private String generateCode() {

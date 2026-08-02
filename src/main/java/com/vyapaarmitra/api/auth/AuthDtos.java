@@ -68,11 +68,20 @@ public final class AuthDtos {
     public record SelectBusinessRequest(@NotNull UUID businessId) {
     }
 
+    /** Pin the identity's default shop (the one login lands on). */
+    public record SetDefaultBusinessRequest(@NotNull UUID businessId) {
+    }
+
+    /** Set the acting membership's preferred branch; null clears it (no preference). */
+    public record SetPreferredBranchRequest(UUID branchId) {
+    }
+
     public record TokenResponse(String accessToken, String refreshToken, MeResponse user) {
     }
 
     public record MeResponse(UUID id, String email, String fullName, String businessName,
-                             Role role, UUID businessId, Set<UUID> branchIds, PlanView plan) {
+                             Role role, UUID businessId, Set<UUID> branchIds,
+                             UUID defaultBusinessId, UUID preferredBranchId, PlanView plan) {
     }
 
     /** One business an identity can act in — powers the business switcher. */

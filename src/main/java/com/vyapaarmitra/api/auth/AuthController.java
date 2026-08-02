@@ -11,6 +11,8 @@ import com.vyapaarmitra.api.auth.AuthDtos.OtpVerifyRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.RefreshRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.RegisterRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.SelectBusinessRequest;
+import com.vyapaarmitra.api.auth.AuthDtos.SetDefaultBusinessRequest;
+import com.vyapaarmitra.api.auth.AuthDtos.SetPreferredBranchRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.TokenResponse;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -18,6 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -91,5 +94,19 @@ public class AuthController {
     @GetMapping("/me")
     public MeResponse me(@AuthenticationPrincipal AuthUser authUser) {
         return authService.me(authUser);
+    }
+
+    /** Pin the identity's default shop (the one login lands on). */
+    @PutMapping("/me/default-business")
+    public MeResponse setDefaultBusiness(@AuthenticationPrincipal AuthUser authUser,
+                                         @Valid @RequestBody SetDefaultBusinessRequest request) {
+        return authService.setDefaultBusiness(authUser, request.businessId());
+    }
+
+    /** Set the acting membership's preferred branch (null clears it). */
+    @PutMapping("/me/preferred-branch")
+    public MeResponse setPreferredBranch(@AuthenticationPrincipal AuthUser authUser,
+                                         @RequestBody SetPreferredBranchRequest request) {
+        return authService.setPreferredBranch(authUser, request.branchId());
     }
 }

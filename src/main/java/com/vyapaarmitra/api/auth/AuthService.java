@@ -5,6 +5,7 @@ import com.vyapaarmitra.api.auth.AuthDtos.MeResponse;
 import com.vyapaarmitra.api.auth.AuthDtos.RegisterRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.TokenResponse;
 import com.vyapaarmitra.api.business.Business;
+import com.vyapaarmitra.api.business.BranchAccessService;
 import com.vyapaarmitra.api.business.BusinessProvisioningService;
 import com.vyapaarmitra.api.business.BusinessRepository;
 import com.vyapaarmitra.api.common.ApiException;
@@ -29,18 +30,21 @@ public class AuthService {
     private final JwtService jwtService;
     private final BusinessProvisioningService provisioningService;
     private final MembershipService membershipService;
+    private final BranchAccessService branchAccessService;
     private final TokenIssuer tokenIssuer;
 
     public AuthService(UserRepository userRepository, BusinessRepository businessRepository,
                        PasswordEncoder passwordEncoder, JwtService jwtService,
                        BusinessProvisioningService provisioningService,
-                       MembershipService membershipService, TokenIssuer tokenIssuer) {
+                       MembershipService membershipService, BranchAccessService branchAccessService,
+                       TokenIssuer tokenIssuer) {
         this.userRepository = userRepository;
         this.businessRepository = businessRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.provisioningService = provisioningService;
         this.membershipService = membershipService;
+        this.branchAccessService = branchAccessService;
         this.tokenIssuer = tokenIssuer;
     }
 
@@ -57,7 +61,8 @@ public class AuthService {
         User owner = provisioningService.provision(request.businessName().trim(), branchName,
             request.ownerName().trim(), email, request.phone().trim(), request.password(),
             Boolean.TRUE.equals(request.defaulterNetworkConsent()));
-        return tokenIssuer.issue(owner, membershipService.defaultActive(owner.getId()));
+        return tokenIssuer.issue(owner,
+            membershipService.defaultActive(owner.getId(), owner.getDefaultBusinessId()));
     }
 
     @Transactional(readOnly = true)
@@ -69,8 +74,9 @@ public class AuthService {
         if (user.getPasswordHash() == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
             throw ApiException.unauthorized("Invalid email or password");
         }
-        // Credentials identify the person; the business is their default active membership.
-        return tokenIssuer.issue(user, membershipService.defaultActive(user.getId()));
+        // Credentials identify the person; the business is their preferred (or newest) membership.
+        return tokenIssuer.issue(user,
+            membershipService.defaultActive(user.getId(), user.getDefaultBusinessId()));
     }
 
     @Transactional(readOnly = true)
@@ -105,6 +111,39 @@ public class AuthService {
             .orElseThrow(() -> ApiException.unauthorized("User no longer exists"));
         Membership membership = membershipService.require(user.getId(), businessId);
         return tokenIssuer.issue(user, membership);
+    }
+
+    /**
+     * Pin the identity's default shop (the one login lands on). Validates the identity
+     * still has an active membership there; the acting session is unchanged. Returns the
+     * refreshed session payload so the client can reflect the new default immediately.
+     */
+    @Transactional
+    public MeResponse setDefaultBusiness(AuthUser authUser, UUID businessId) {
+        User user = userRepository.findById(authUser.id())
+            .filter(User::isActive)
+            .orElseThrow(() -> ApiException.unauthorized("User no longer exists"));
+        membershipService.require(user.getId(), businessId); // 401 if not an active membership
+        user.setDefaultBusinessId(businessId);
+        userRepository.save(user);
+        // Reflect against the currently acting membership (default change doesn't switch shops).
+        return tokenIssuer.toMe(user, membershipService.require(user.getId(), authUser.businessId()));
+    }
+
+    /**
+     * Set the acting membership's preferred branch (null clears it). Validates branch access
+     * for a non-null branch (owner: any active branch in the business; staff: an assigned one).
+     */
+    @Transactional
+    public MeResponse setPreferredBranch(AuthUser authUser, UUID branchId) {
+        User user = userRepository.findById(authUser.id())
+            .filter(User::isActive)
+            .orElseThrow(() -> ApiException.unauthorized("User no longer exists"));
+        if (branchId != null) {
+            branchAccessService.assertBranchAccess(authUser, branchId);
+        }
+        membershipService.setPreferredBranch(user.getId(), authUser.businessId(), branchId);
+        return tokenIssuer.toMe(user, membershipService.require(user.getId(), authUser.businessId()));
     }
 
     /** The businesses this identity can act in — powers the switcher. */

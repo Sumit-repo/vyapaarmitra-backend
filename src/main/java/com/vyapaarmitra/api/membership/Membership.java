@@ -52,6 +52,11 @@ public class Membership {
     @Column(nullable = false)
     private boolean active = true;
 
+    // Preferred/last-used branch within this business. Null = no preference (owner → All
+    // Branches; staff → first assigned branch). Re-validated against branch access on use.
+    @Column(name = "preferred_branch_id")
+    private UUID preferredBranchId;
+
     // Branch scope for BRANCH_MANAGER / STAFF. OWNER implicitly has all branches.
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "membership_branch_access", joinColumns = @JoinColumn(name = "membership_id"))

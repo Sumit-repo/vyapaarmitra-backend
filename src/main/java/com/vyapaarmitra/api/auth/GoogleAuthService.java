@@ -70,6 +70,7 @@ public class GoogleAuthService {
 
     private GoogleAuthResponse session(User user) {
         return new GoogleAuthResponse(false, user.getEmail(), user.getFullName(),
-            tokenIssuer.issue(user, membershipService.defaultActive(user.getId())));
+            tokenIssuer.issue(user,
+                membershipService.defaultActive(user.getId(), user.getDefaultBusinessId())));
     }
 }

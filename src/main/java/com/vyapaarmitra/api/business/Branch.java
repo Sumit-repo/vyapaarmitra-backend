@@ -35,6 +35,11 @@ public class Branch {
     @Column(nullable = false)
     private boolean active = true;
 
+    // When the branch was last deactivated — anchors the short reactivation cooldown that
+    // stops rapid active/inactive flip-flopping to game the plan's branch cap. Null while active.
+    @Column(name = "deactivated_at")
+    private Instant deactivatedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;

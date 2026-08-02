@@ -2,6 +2,7 @@ package com.vyapaarmitra.api.business;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.time.Instant;
 import java.util.UUID;
 
 public final class BranchDtos {
@@ -9,11 +10,12 @@ public final class BranchDtos {
     private BranchDtos() {
     }
 
-    public record BranchResponse(UUID id, String name, String address, boolean active) {
+    public record BranchResponse(UUID id, String name, String address, boolean active,
+                                 Instant deactivatedAt) {
 
         public static BranchResponse from(Branch branch) {
             return new BranchResponse(branch.getId(), branch.getName(), branch.getAddress(),
-                branch.isActive());
+                branch.isActive(), branch.getDeactivatedAt());
         }
     }
 

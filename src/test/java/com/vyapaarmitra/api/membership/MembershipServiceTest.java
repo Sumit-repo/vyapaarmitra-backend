@@ -37,13 +37,34 @@ class MembershipServiceTest {
     }
 
     @Test
-    void defaultActivePicksMostRecentlyCreated() {
+    void defaultActivePicksMostRecentlyCreatedWhenNoPreference() {
         UUID userId = UUID.randomUUID();
         Membership older = membership(userId, UUID.randomUUID(), true, Instant.parse("2026-01-01T00:00:00Z"));
         Membership newer = membership(userId, UUID.randomUUID(), true, Instant.parse("2026-06-01T00:00:00Z"));
         when(membershipRepository.findByUserIdAndActiveTrue(userId)).thenReturn(List.of(older, newer));
 
-        assertThat(service().defaultActive(userId)).isSameAs(newer);
+        assertThat(service().defaultActive(userId, null)).isSameAs(newer);
+    }
+
+    @Test
+    void defaultActivePrefersChosenDefaultBusiness() {
+        UUID userId = UUID.randomUUID();
+        Membership older = membership(userId, UUID.randomUUID(), true, Instant.parse("2026-01-01T00:00:00Z"));
+        Membership newer = membership(userId, UUID.randomUUID(), true, Instant.parse("2026-06-01T00:00:00Z"));
+        when(membershipRepository.findByUserIdAndActiveTrue(userId)).thenReturn(List.of(older, newer));
+
+        // Preferred = the older business → chosen over the newest-created fallback.
+        assertThat(service().defaultActive(userId, older.getBusinessId())).isSameAs(older);
+    }
+
+    @Test
+    void defaultActiveFallsBackWhenPreferredBusinessNotActive() {
+        UUID userId = UUID.randomUUID();
+        Membership newer = membership(userId, UUID.randomUUID(), true, Instant.parse("2026-06-01T00:00:00Z"));
+        when(membershipRepository.findByUserIdAndActiveTrue(userId)).thenReturn(List.of(newer));
+
+        // Preferred business is gone from the active set → fall back to newest active.
+        assertThat(service().defaultActive(userId, UUID.randomUUID())).isSameAs(newer);
     }
 
     @Test
@@ -51,7 +72,7 @@ class MembershipServiceTest {
         UUID userId = UUID.randomUUID();
         when(membershipRepository.findByUserIdAndActiveTrue(userId)).thenReturn(List.of());
 
-        assertThatThrownBy(() -> service().defaultActive(userId))
+        assertThatThrownBy(() -> service().defaultActive(userId, null))
             .isInstanceOfSatisfying(ApiException.class,
                 e -> assertThat(e.getCode()).isEqualTo("NO_BUSINESS_ACCESS"));
     }

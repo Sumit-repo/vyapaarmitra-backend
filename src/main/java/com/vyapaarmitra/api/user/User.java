@@ -60,6 +60,12 @@ public class User {
     @Column(name = "token_version", nullable = false)
     private int tokenVersion = 0;
 
+    // The shop this identity prefers to land on at login. Null → fall back to the most
+    // recently created active membership. Re-validated against active memberships on use,
+    // so a deactivated/removed business quietly falls back instead of failing.
+    @Column(name = "default_business_id")
+    private UUID defaultBusinessId;
+
     // True once this identity has consumed its single 14-day Pro trial (on the first
     // business they created). Later businesses they create start on FREE — the trial is
     // per-person, not per-business.

@@ -42,6 +42,7 @@ public class TokenIssuer {
             .orElse(null);
         return new MeResponse(user.getId(), user.getEmail(), user.getFullName(), businessName,
             membership.getRole(), membership.getBusinessId(), Set.copyOf(membership.getBranchIds()),
+            user.getDefaultBusinessId(), membership.getPreferredBranchId(),
             planService.view(membership.getBusinessId()));
     }
 }

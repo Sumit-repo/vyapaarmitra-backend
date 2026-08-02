@@ -1,7 +1,31 @@
 # VyapaarMitra Backend — TODO
 
 _Spring Boot API. Companion to `../vyapaarmitra-web/todo.md` (web BFF). Sequenced
-as a punch-list. Last updated: 2026-07-30._
+as a punch-list. Last updated: 2026-08-02._
+
+## ✅ Shipped 2026-08-02 — default shop/branch, branch cooldown, billing hardening
+⚠️ **Not yet deployed — needs a Render redeploy (Flyway V14 + V15 then `ddl-auto=validate`).**
+Branch: `feat/supplier-oldest-due-date`. Web companion on `redesign-v2`.
+- **Settable defaults (identity).** `V14__default_business_and_preferred_branch.sql`:
+  `users.default_business_id` + `memberships.preferred_branch_id` (both FK `ON DELETE SET NULL`).
+  `MembershipService.defaultActive(userId, preferredBusinessId)` prefers the pinned shop, falls back
+  to newest active; every auth path (password/OTP×2/Google/register) passes it. `MeResponse` carries
+  `defaultBusinessId` + `preferredBranchId` (via `TokenIssuer.toMe`). New authed endpoints
+  `PUT /me/default-business` + `PUT /me/preferred-branch` (validated: membership active /
+  `BranchAccessService`). `MembershipServiceTest` covers prefer/fallback.
+- **Branch deactivate + reactivation cooldown.** `V15__branch_deactivated_at.sql` adds
+  `branches.deactivated_at`. `BranchController.update` stamps it on deactivate; reactivate is blocked
+  for **24h** (`BRANCH_COOLDOWN`) and must fit the **active-branch** cap (`assertCanAddBranch` →
+  `PLAN_LIMIT`). `GET /branches?includeInactive=true` (owner-only) returns deactivated branches for
+  management; `BranchResponse` gained `deactivatedAt`. (This is the branch-level slice of Phase 3's
+  "reactivate grace"; the 30-day business/staff grace is still open below.)
+- **Billing hardening (fixes a real checkout-blocking bug).** `BillingService.gstinCustomerId` now
+  try/catches — the GSTIN Razorpay-customer pre-create is **non-fatal** and checkout proceeds without
+  it (as its doc always claimed). It was silently killing checkout with "Payment gateway is
+  unavailable" for any GST-registered shop. `RazorpayClient` now **logs the real gateway failure**
+  (HTTP status + Razorpay response body) before the 502, so key/plan test-vs-live mismatches are
+  diagnosable from logs. Also surfaced (web side) the real error instead of a generic toast.
+- Compiles green offline (`./mvnw -o test-compile`).
 
 ## ✅ Shipped 2026-07-28 — subscriptions & billing
 New `com.vyapaarmitra.api.subscription` package + `V7__subscriptions.sql`:

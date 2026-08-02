@@ -8,6 +8,8 @@ import com.vyapaarmitra.api.subscription.BillingDtos.CheckoutResponse;
 import com.vyapaarmitra.api.subscription.BillingDtos.InvoiceItem;
 import com.vyapaarmitra.api.subscription.RazorpayClient.RazorpaySubscription;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class BillingService {
+
+    private static final Logger log = LoggerFactory.getLogger(BillingService.class);
 
     // Razorpay requires a bounded total_count. Use a long horizon for monthly so the
     // mandate effectively runs "until cancelled"; yearly renews for a decade.
@@ -93,7 +97,15 @@ public class BillingService {
         if (business == null || business.getGstin() == null || business.getGstin().isBlank()) {
             return null;
         }
-        return razorpayClient.createCustomerWithGstin(business.getName(), business.getGstin());
+        // Non-fatal: if Razorpay rejects the GSTIN customer (bad GSTIN, test-mode quirk),
+        // don't block payment — proceed without the GST-customer, as documented.
+        try {
+            return razorpayClient.createCustomerWithGstin(business.getName(), business.getGstin());
+        } catch (ApiException e) {
+            log.warn("GSTIN customer create failed for business {} — continuing checkout without it",
+                businessId, e);
+            return null;
+        }
     }
 
     /** GST invoices/receipts for the caller's subscription — empty until they've paid. */

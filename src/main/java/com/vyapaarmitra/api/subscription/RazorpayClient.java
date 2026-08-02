@@ -9,10 +9,13 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 /**
  * Thin wrapper over the Razorpay Subscriptions REST API. Uses {@link RestClient}
@@ -22,6 +25,8 @@ import org.springframework.web.client.RestClientException;
  */
 @Component
 public class RazorpayClient {
+
+    private static final Logger log = LoggerFactory.getLogger(RazorpayClient.class);
 
     private static final String BASE_URL = "https://api.razorpay.com/v1";
 
@@ -110,8 +115,7 @@ public class RazorpayClient {
                 .body(String.class);
             return MAPPER.readTree(json);
         } catch (RestClientException | com.fasterxml.jackson.core.JsonProcessingException e) {
-            throw new ApiException(HttpStatus.BAD_GATEWAY, "GATEWAY_ERROR",
-                "Payment gateway is unavailable. Please try again.");
+            throw gatewayError("GET", path, e);
         }
     }
 
@@ -125,9 +129,20 @@ public class RazorpayClient {
                 .body(String.class);
             return MAPPER.readTree(json);
         } catch (RestClientException | com.fasterxml.jackson.core.JsonProcessingException e) {
-            throw new ApiException(HttpStatus.BAD_GATEWAY, "GATEWAY_ERROR",
-                "Payment gateway is unavailable. Please try again.");
+            throw gatewayError("POST", path, e);
         }
+    }
+
+    /** Logs the real Razorpay failure (status + response body) before returning the safe 502. */
+    private ApiException gatewayError(String method, String path, Exception e) {
+        if (e instanceof RestClientResponseException rre) {
+            log.error("Razorpay {} {} failed: {} — {}", method, path,
+                rre.getStatusCode().value(), rre.getResponseBodyAsString());
+        } else {
+            log.error("Razorpay {} {} failed: {}", method, path, e.toString());
+        }
+        return new ApiException(HttpStatus.BAD_GATEWAY, "GATEWAY_ERROR",
+            "Payment gateway is unavailable. Please try again.");
     }
 
     private String basicAuth() {
