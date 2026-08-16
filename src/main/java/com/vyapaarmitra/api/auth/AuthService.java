@@ -157,6 +157,17 @@ public class AuthService {
             .toList();
     }
 
+    /** Update the identity's own display name. */
+    @Transactional
+    public MeResponse updateProfile(AuthUser authUser, String fullName) {
+        User user = userRepository.findById(authUser.id())
+            .filter(User::isActive)
+            .orElseThrow(() -> ApiException.unauthorized("User no longer exists"));
+        user.setFullName(fullName.trim());
+        userRepository.save(user);
+        return tokenIssuer.toMe(user, membershipService.require(user.getId(), authUser.businessId()));
+    }
+
     @Transactional(readOnly = true)
     public MeResponse me(AuthUser authUser) {
         User user = userRepository.findById(authUser.id())

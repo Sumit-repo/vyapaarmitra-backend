@@ -76,6 +76,10 @@ public final class AuthDtos {
     public record SetPreferredBranchRequest(UUID branchId) {
     }
 
+    /** Update the signed-in identity's own profile (currently just the display name). */
+    public record UpdateProfileRequest(@NotBlank @Size(max = 120) String fullName) {
+    }
+
     public record TokenResponse(String accessToken, String refreshToken, MeResponse user) {
     }
 

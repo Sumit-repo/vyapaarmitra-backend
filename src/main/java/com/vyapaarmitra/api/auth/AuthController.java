@@ -14,11 +14,13 @@ import com.vyapaarmitra.api.auth.AuthDtos.SelectBusinessRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.SetDefaultBusinessRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.SetPreferredBranchRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.TokenResponse;
+import com.vyapaarmitra.api.auth.AuthDtos.UpdateProfileRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -94,6 +96,13 @@ public class AuthController {
     @GetMapping("/me")
     public MeResponse me(@AuthenticationPrincipal AuthUser authUser) {
         return authService.me(authUser);
+    }
+
+    /** Update the signed-in identity's own profile (display name). */
+    @PatchMapping("/me")
+    public MeResponse updateProfile(@AuthenticationPrincipal AuthUser authUser,
+                                    @Valid @RequestBody UpdateProfileRequest request) {
+        return authService.updateProfile(authUser, request.fullName());
     }
 
     /** Pin the identity's default shop (the one login lands on). */
