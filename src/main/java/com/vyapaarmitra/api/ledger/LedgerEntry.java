@@ -47,6 +47,14 @@ public class LedgerEntry {
 
     private String note;
 
+    // Cloudinary bill photo attached to this entry (optional). attachment_url is shown
+    // on the ledger; attachment_public_id lets us clean up the image on delete.
+    @Column(name = "attachment_url")
+    private String attachmentUrl;
+
+    @Column(name = "attachment_public_id")
+    private String attachmentPublicId;
+
     @Column(name = "due_date")
     private LocalDate dueDate;
 

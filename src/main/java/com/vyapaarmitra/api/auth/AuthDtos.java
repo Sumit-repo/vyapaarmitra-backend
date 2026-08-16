@@ -79,8 +79,8 @@ public final class AuthDtos {
     public record TokenResponse(String accessToken, String refreshToken, MeResponse user) {
     }
 
-    public record MeResponse(UUID id, String email, String fullName, String businessName,
-                             Role role, UUID businessId, Set<UUID> branchIds,
+    public record MeResponse(UUID id, String email, String fullName, String avatarUrl,
+                             String businessName, Role role, UUID businessId, Set<UUID> branchIds,
                              UUID defaultBusinessId, UUID preferredBranchId, PlanView plan) {
     }
 

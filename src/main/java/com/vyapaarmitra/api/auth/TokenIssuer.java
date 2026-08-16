@@ -40,9 +40,9 @@ public class TokenIssuer {
         String businessName = businessRepository.findById(membership.getBusinessId())
             .map(Business::getName)
             .orElse(null);
-        return new MeResponse(user.getId(), user.getEmail(), user.getFullName(), businessName,
-            membership.getRole(), membership.getBusinessId(), Set.copyOf(membership.getBranchIds()),
-            user.getDefaultBusinessId(), membership.getPreferredBranchId(),
-            planService.view(membership.getBusinessId()));
+        return new MeResponse(user.getId(), user.getEmail(), user.getFullName(), user.getAvatarUrl(),
+            businessName, membership.getRole(), membership.getBusinessId(),
+            Set.copyOf(membership.getBranchIds()), user.getDefaultBusinessId(),
+            membership.getPreferredBranchId(), planService.view(membership.getBusinessId()));
     }
 }

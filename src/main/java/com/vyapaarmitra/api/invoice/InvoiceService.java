@@ -115,7 +115,7 @@ public class InvoiceService {
         if (balanceDue.signum() > 0 && request.partyCustomerId() != null) {
             var created = ledgerService.createEntry(authUser, new CreateEntryRequest(
                 request.partyCustomerId(), EntryType.CREDIT, balanceDue, "INVOICE",
-                "Bill " + invoice.getNumber(), null));
+                "Bill " + invoice.getNumber(), null, null, null));
             invoice.setLedgerEntryId(created.entry().id());
             invoiceRepository.save(invoice);
         }
@@ -138,7 +138,7 @@ public class InvoiceService {
         if (invoice.getLedgerEntryId() != null && invoice.getPartyCustomerId() != null) {
             ledgerService.createEntry(authUser, new CreateEntryRequest(
                 invoice.getPartyCustomerId(), EntryType.PAYMENT, balanceDue, "INVOICE",
-                "Paid " + invoice.getNumber(), null));
+                "Paid " + invoice.getNumber(), null, null, null));
         }
         invoice.setAmountReceived(invoice.getGrandTotal());
         invoice.setStatus(BillStatus.PAID);

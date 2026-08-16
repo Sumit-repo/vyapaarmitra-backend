@@ -21,12 +21,16 @@ public final class LedgerDtos {
                                      BigDecimal amount,
                                      @Size(max = 20) String method,
                                      @Size(max = 500) String note,
-                                     LocalDate dueDate) {
+                                     LocalDate dueDate,
+                                     // Optional Cloudinary bill photo (uploaded via POST /attachments first).
+                                     @Size(max = 500) String attachmentUrl,
+                                     @Size(max = 200) String attachmentPublicId) {
     }
 
     public record EntryResponse(UUID id, UUID customerId, EntryType entryType, BigDecimal amount,
-                                String method, String note, LocalDate dueDate, Instant entryAt,
-                                BigDecimal balanceAfter, UUID createdBy, String createdByName) {
+                                String method, String note, String attachmentUrl, LocalDate dueDate,
+                                Instant entryAt, BigDecimal balanceAfter, UUID createdBy,
+                                String createdByName) {
 
         /**
          * {@code balanceAfter} is the running balance after this entry (server-computed);
@@ -34,8 +38,8 @@ public final class LedgerDtos {
          */
         public static EntryResponse from(LedgerEntry e, BigDecimal balanceAfter, String createdByName) {
             return new EntryResponse(e.getId(), e.getCustomerId(), e.getEntryType(), e.getAmount(),
-                e.getMethod(), e.getNote(), e.getDueDate(), e.getEntryAt(), balanceAfter,
-                e.getCreatedBy(), createdByName);
+                e.getMethod(), e.getNote(), e.getAttachmentUrl(), e.getDueDate(), e.getEntryAt(),
+                balanceAfter, e.getCreatedBy(), createdByName);
         }
     }
 

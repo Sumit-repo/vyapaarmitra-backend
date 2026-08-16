@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @Slf4j
 @RestControllerAdvice
@@ -78,6 +79,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
             .body(errorBody("MISSING_PARAMETER",
                 "Missing required parameter '" + ex.getParameterName() + "'", null));
+    }
+
+    /**
+     * The multipart resolver rejects an over-limit upload (spring.servlet.multipart
+     * max-file/request-size) before the controller runs, so this — not the in-controller
+     * check — is what a too-big image actually hits. Map it to a clean 413.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    ResponseEntity<Map<String, Object>> handleTooLarge(MaxUploadSizeExceededException ex) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+            .body(errorBody("FILE_TOO_LARGE", "Image is too large. Please use one under 10 MB.", null));
     }
 
     @ExceptionHandler(AuthorizationDeniedException.class)

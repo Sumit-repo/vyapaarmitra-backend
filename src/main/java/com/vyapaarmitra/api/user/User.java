@@ -47,6 +47,14 @@ public class User {
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
+    // Cloudinary profile picture. avatar_url is shown; avatar_public_id lets us delete
+    // the old image on replace/remove. Both null until the user uploads one.
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
+    @Column(name = "avatar_public_id")
+    private String avatarPublicId;
+
     @Column(name = "email_verified", nullable = false)
     private boolean emailVerified = false;
 

@@ -48,6 +48,13 @@ public class SupplierLedgerEntry {
 
     private String note;
 
+    // Cloudinary purchase-bill photo attached to this entry (optional).
+    @Column(name = "attachment_url")
+    private String attachmentUrl;
+
+    @Column(name = "attachment_public_id")
+    private String attachmentPublicId;
+
     @Column(name = "due_date")
     private LocalDate dueDate;
 

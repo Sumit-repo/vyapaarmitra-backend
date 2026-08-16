@@ -67,6 +67,8 @@ public class LedgerService {
         entry.setAmount(request.amount());
         entry.setMethod(request.method());
         entry.setNote(request.note());
+        entry.setAttachmentUrl(request.attachmentUrl());
+        entry.setAttachmentPublicId(request.attachmentPublicId());
         if (request.entryType() == EntryType.CREDIT) {
             entry.setDueDate(request.dueDate() != null
                 ? request.dueDate()

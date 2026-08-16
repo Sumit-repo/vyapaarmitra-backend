@@ -67,13 +67,15 @@ public final class SupplierDtos {
                                              BigDecimal amount,
                                              @Size(max = 20) String method,
                                              @Size(max = 500) String note,
-                                             LocalDate dueDate) {
+                                             LocalDate dueDate,
+                                             @Size(max = 500) String attachmentUrl,
+                                             @Size(max = 200) String attachmentPublicId) {
     }
 
     public record SupplierEntryResponse(UUID id, UUID supplierId, EntryType entryType,
                                         BigDecimal amount, String method, String note,
-                                        LocalDate dueDate, Instant entryAt, BigDecimal balanceAfter,
-                                        UUID createdBy, String createdByName) {
+                                        String attachmentUrl, LocalDate dueDate, Instant entryAt,
+                                        BigDecimal balanceAfter, UUID createdBy, String createdByName) {
 
         /**
          * {@code balanceAfter} is the running balance after this entry (server-computed);
@@ -82,8 +84,8 @@ public final class SupplierDtos {
         public static SupplierEntryResponse from(SupplierLedgerEntry e, BigDecimal balanceAfter,
                                                  String createdByName) {
             return new SupplierEntryResponse(e.getId(), e.getSupplierId(), e.getEntryType(),
-                e.getAmount(), e.getMethod(), e.getNote(), e.getDueDate(), e.getEntryAt(), balanceAfter,
-                e.getCreatedBy(), createdByName);
+                e.getAmount(), e.getMethod(), e.getNote(), e.getAttachmentUrl(), e.getDueDate(),
+                e.getEntryAt(), balanceAfter, e.getCreatedBy(), createdByName);
         }
     }
 

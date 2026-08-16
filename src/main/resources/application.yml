@@ -16,6 +16,13 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+  servlet:
+    multipart:
+      # Images are uploaded at near-original quality (no client compression) and
+      # downscaled by Cloudinary on its side. 10 MB matches Cloudinary's free-tier
+      # per-image limit; anything larger is rejected with a clean 413.
+      max-file-size: 10MB
+      max-request-size: 12MB
 
 server:
   port: ${PORT:8080}
