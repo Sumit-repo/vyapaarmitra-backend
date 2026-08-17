@@ -55,12 +55,23 @@ public class SupplierService {
 
     @Transactional(readOnly = true)
     public PageResponse<SupplierListItem> list(AuthUser authUser, UUID branchId, String q,
-                                               int page, int size) {
+                                               String sort, int page, int size) {
         Set<UUID> branchIds = branchAccessService.scope(authUser, branchId);
         Pageable pageable = PageRequest.of(Math.max(0, page), Math.min(Math.max(1, size), MAX_PAGE_SIZE));
-        Page<Supplier> result = (q == null || q.isBlank())
-            ? supplierRepository.findByBranchIdInAndActiveTrueOrderByNameAsc(branchIds, pageable)
-            : supplierRepository.search(branchIds, q.trim(), pageable);
+        // Default ordering is "highest payable first"; the parties list can flip to name A→Z.
+        boolean byName = "name".equalsIgnoreCase(sort);
+        boolean hasQuery = q != null && !q.isBlank();
+        Page<Supplier> result;
+        if (hasQuery) {
+            String term = q.trim();
+            result = byName
+                ? supplierRepository.search(branchIds, term, pageable)
+                : supplierRepository.searchByDue(branchIds, term, pageable);
+        } else {
+            result = byName
+                ? supplierRepository.findByBranchIdInAndActiveTrueOrderByNameAsc(branchIds, pageable)
+                : supplierRepository.findByBranchIdInAndActiveTrueOrderByCurrentBalanceDescNameAsc(branchIds, pageable);
+        }
         return PageResponse.of(result.map(SupplierListItem::from));
     }
 

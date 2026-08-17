@@ -43,9 +43,10 @@ public class CustomerController {
     public PageResponse<CustomerListItem> list(@AuthenticationPrincipal AuthUser authUser,
                                                @RequestParam(required = false) UUID branchId,
                                                @RequestParam(required = false) @Size(max = 100) String q,
+                                               @RequestParam(defaultValue = "due") @Size(max = 8) String sort,
                                                @RequestParam(defaultValue = "0") @Min(0) int page,
                                                @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return customerService.list(authUser, branchId, q, page, size);
+        return customerService.list(authUser, branchId, q, sort, page, size);
     }
 
     @GetMapping("/{id}")

@@ -42,12 +42,23 @@ public class CustomerService {
 
     @Transactional(readOnly = true)
     public PageResponse<CustomerListItem> list(AuthUser authUser, UUID branchId, String q,
-                                               int page, int size) {
+                                               String sort, int page, int size) {
         Set<UUID> branchIds = branchAccessService.scope(authUser, branchId);
         Pageable pageable = PageRequest.of(Math.max(0, page), Math.min(Math.max(1, size), MAX_PAGE_SIZE));
-        Page<Customer> result = (q == null || q.isBlank())
-            ? customerRepository.findByBranchIdInAndActiveTrueOrderByNameAsc(branchIds, pageable)
-            : customerRepository.search(branchIds, q.trim(), pageable);
+        // Default ordering is "highest due first"; the parties list can flip to name A→Z.
+        boolean byName = "name".equalsIgnoreCase(sort);
+        boolean hasQuery = q != null && !q.isBlank();
+        Page<Customer> result;
+        if (hasQuery) {
+            String term = q.trim();
+            result = byName
+                ? customerRepository.search(branchIds, term, pageable)
+                : customerRepository.searchByDue(branchIds, term, pageable);
+        } else {
+            result = byName
+                ? customerRepository.findByBranchIdInAndActiveTrueOrderByNameAsc(branchIds, pageable)
+                : customerRepository.findByBranchIdInAndActiveTrueOrderByCurrentBalanceDescNameAsc(branchIds, pageable);
+        }
         boolean includeTrust = trustEntitled(authUser);
         return PageResponse.of(result.map(c -> CustomerListItem.from(c, includeTrust)));
     }

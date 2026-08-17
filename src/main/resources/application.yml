@@ -71,6 +71,14 @@ app:
     enabled: ${RATE_LIMIT_ENABLED:true}
     # Max login/refresh attempts per client IP per minute (brute-force guard).
     auth-requests-per-minute: ${RATE_LIMIT_AUTH_PER_MINUTE:20}
+  newrelic:
+    # New Relic Event API — the mobile app posts funnel/error events to /api/v1/telemetry and
+    # we relay them here. Server-only ingest key: it never ships in the client bundle. When
+    # blank, events are dropped with a debug log so local/dev runs without New Relic.
+    account-id: ${NEWRELIC_ACCOUNT_ID:}
+    ingest-key: ${NEWRELIC_INGEST_KEY:}
+    # Override for the EU datacenter: https://insights-collector.eu01.nr-data.net
+    endpoint: ${NEWRELIC_ENDPOINT:}
   bootstrap:
     owner-email: ${BOOTSTRAP_OWNER_EMAIL:}
     owner-password: ${BOOTSTRAP_OWNER_PASSWORD:}

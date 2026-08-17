@@ -26,6 +26,21 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
     Page<Customer> search(@Param("branchIds") Collection<UUID> branchIds, @Param("q") String q,
                           Pageable pageable);
 
+    /** "Highest due first" ordering for the parties list (name breaks ties). */
+    Page<Customer> findByBranchIdInAndActiveTrueOrderByCurrentBalanceDescNameAsc(
+        Collection<UUID> branchIds, Pageable pageable);
+
+    /** Search variant ordered by highest due (mirrors {@link #search} otherwise). */
+    @Query("""
+        select c from Customer c
+        where c.branchId in :branchIds and c.active = true
+          and (lower(c.name) like lower(concat('%', :q, '%'))
+               or c.phone like concat('%', :q, '%'))
+        order by c.currentBalance desc, c.name asc
+        """)
+    Page<Customer> searchByDue(@Param("branchIds") Collection<UUID> branchIds, @Param("q") String q,
+                               Pageable pageable);
+
     @Query("""
         select c from Customer c
         where c.branchId in :branchIds and c.active = true

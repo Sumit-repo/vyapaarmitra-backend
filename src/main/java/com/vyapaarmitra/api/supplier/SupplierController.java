@@ -12,6 +12,7 @@ import com.vyapaarmitra.api.supplier.SupplierDtos.UpdateSupplierRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -39,9 +40,10 @@ public class SupplierController {
     public PageResponse<SupplierListItem> list(@AuthenticationPrincipal AuthUser authUser,
                                                @RequestParam(required = false) UUID branchId,
                                                @RequestParam(required = false) String q,
+                                               @RequestParam(defaultValue = "due") @Size(max = 8) String sort,
                                                @RequestParam(defaultValue = "0") @Min(0) int page,
                                                @RequestParam(defaultValue = "30") @Min(1) @Max(100) int size) {
-        return supplierService.list(authUser, branchId, q, page, size);
+        return supplierService.list(authUser, branchId, q, sort, page, size);
     }
 
     @GetMapping("/suppliers/{id}")

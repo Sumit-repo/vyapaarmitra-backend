@@ -23,6 +23,21 @@ public interface SupplierRepository extends JpaRepository<Supplier, UUID> {
     Page<Supplier> search(@Param("branchIds") Collection<UUID> branchIds, @Param("q") String q,
                           Pageable pageable);
 
+    /** "Highest payable first" ordering for the parties list (name breaks ties). */
+    Page<Supplier> findByBranchIdInAndActiveTrueOrderByCurrentBalanceDescNameAsc(
+        Collection<UUID> branchIds, Pageable pageable);
+
+    /** Search variant ordered by highest payable (mirrors {@link #search} otherwise). */
+    @Query("""
+        select s from Supplier s
+        where s.branchId in :branchIds and s.active = true
+          and (lower(s.name) like lower(concat('%', :q, '%'))
+               or s.phone like concat('%', :q, '%'))
+        order by s.currentBalance desc, s.name asc
+        """)
+    Page<Supplier> searchByDue(@Param("branchIds") Collection<UUID> branchIds, @Param("q") String q,
+                               Pageable pageable);
+
     @Query("""
         select coalesce(sum(s.currentBalance), 0) from Supplier s
         where s.branchId in :branchIds and s.active = true and s.currentBalance > 0
