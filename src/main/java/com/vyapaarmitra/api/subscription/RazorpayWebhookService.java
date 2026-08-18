@@ -3,23 +3,23 @@ package com.vyapaarmitra.api.subscription;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Applies verified Razorpay subscription webhooks to our {@link Subscription} row.
- * This is the ONLY path that turns a subscription ACTIVE — nothing else grants a
- * paid plan. Idempotent via {@link BillingEvent}: a replayed event is a no-op.
+ * Applies verified Razorpay {@code payment_link.paid} webhooks to our {@link Subscription} row.
+ * This is the ONLY path that grants paid access — nothing else does. On a paid one-time link we
+ * apply the chosen tier and STACK the purchased period onto any remaining time. Idempotent via
+ * {@link BillingEvent}: a replayed event is a no-op.
  */
 @Slf4j
 @Service
 public class RazorpayWebhookService {
 
     private static final String GATEWAY = "RAZORPAY";
-    private static final int DUNNING_GRACE_DAYS = 7;
 
     private final SubscriptionRepository subscriptionRepository;
     private final BillingEventRepository billingEventRepository;
@@ -48,13 +48,14 @@ public class RazorpayWebhookService {
             return billingEventRepository.save(e);
         });
 
-        JsonNode entity = root.path("payload").path("subscription").path("entity");
-        String subId = entity.path("id").asText(null);
-        if (subId != null) {
-            subscriptionRepository.findByGatewaySubId(subId)
+        // We only issue one-time payment links now; the paid event carries the plink id.
+        JsonNode entity = root.path("payload").path("payment_link").path("entity");
+        String linkId = entity.path("id").asText(null);
+        if (linkId != null) {
+            subscriptionRepository.findByGatewaySubId(linkId)
                 .ifPresent(sub -> apply(sub, eventType, entity));
         } else {
-            log.warn("Razorpay webhook {} carried no subscription id", eventType);
+            log.warn("Razorpay webhook {} carried no payment link id", eventType);
         }
 
         event.setProcessedAt(Instant.now());
@@ -62,35 +63,28 @@ public class RazorpayWebhookService {
     }
 
     private void apply(Subscription sub, String eventType, JsonNode entity) {
-        switch (eventType) {
-            case "subscription.activated", "subscription.charged" -> {
-                // Payment is verified — NOW apply the tier the user chose at checkout.
-                // This is the only place plan/billingPeriod change on an upgrade.
-                if (sub.getPendingPlan() != null) {
-                    sub.setPlan(sub.getPendingPlan());
-                    sub.setBillingPeriod(sub.getPendingBillingPeriod());
-                    sub.setPendingPlan(null);
-                    sub.setPendingBillingPeriod(null);
-                }
-                sub.setStatus(SubscriptionStatus.ACTIVE);
-                sub.setGraceUntil(null);
-                Instant periodEnd = epochSeconds(entity.path("current_end").asLong(0));
-                if (periodEnd != null) {
-                    sub.setCurrentPeriodEnd(periodEnd);
-                }
-            }
-            case "subscription.pending", "subscription.halted" -> {
-                sub.setStatus(SubscriptionStatus.PAST_DUE);
-                sub.setGraceUntil(Instant.now().plus(DUNNING_GRACE_DAYS, ChronoUnit.DAYS));
-            }
-            case "subscription.cancelled" -> sub.setStatus(SubscriptionStatus.CANCELLED);
-            case "subscription.completed" -> sub.setStatus(SubscriptionStatus.EXPIRED);
-            default -> log.debug("Ignoring unhandled Razorpay event {}", eventType);
+        if (!"payment_link.paid".equals(eventType)) {
+            log.debug("Ignoring unhandled Razorpay event {}", eventType);
+            return;
         }
-        subscriptionRepository.save(sub);
-    }
+        // One-time purchase verified — apply the chosen tier and STACK the purchased period onto
+        // any remaining time (buying while still active extends it, never resets it).
+        if (sub.getPendingPlan() == null) {
+            return; // no pending intent (stale/duplicate link) — nothing to grant
+        }
+        Instant now = Instant.now();
+        Instant base = (sub.getCurrentPeriodEnd() != null && sub.getCurrentPeriodEnd().isAfter(now))
+            ? sub.getCurrentPeriodEnd() : now;
+        int months = sub.getPendingBillingPeriod() == BillingPeriod.YEARLY ? 12 : 1;
+        Instant newEnd = base.atZone(ZoneOffset.UTC).plusMonths(months).toInstant();
 
-    private static Instant epochSeconds(long seconds) {
-        return seconds > 0 ? Instant.ofEpochSecond(seconds) : null;
+        sub.setPlan(sub.getPendingPlan());
+        sub.setBillingPeriod(sub.getPendingBillingPeriod());
+        sub.setCurrentPeriodEnd(newEnd);
+        sub.setStatus(SubscriptionStatus.ACTIVE);
+        sub.setGraceUntil(null);
+        sub.setPendingPlan(null);
+        sub.setPendingBillingPeriod(null);
+        subscriptionRepository.save(sub);
     }
 }

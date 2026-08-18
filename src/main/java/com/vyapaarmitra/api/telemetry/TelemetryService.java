@@ -7,10 +7,11 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 
 /**
- * Turns client telemetry into New Relic events. Server-authoritative on identity: userId /
- * businessId / role come from the access token, never the request body. Caller-supplied
- * props are defensively capped (count + value length, scalars only) and can never overwrite
- * a server-set attribute.
+ * Turns client telemetry into New Relic log entries (queryable via {@code FROM Log WHERE
+ * logtype = 'vmmobile'}). Server-authoritative on identity: userId / businessId / role come
+ * from the access token, never the request body. Caller-supplied props are defensively capped
+ * (count + value length, scalars only) and can never overwrite a server-set attribute — and
+ * the client only ever sends enums/counts, never PII (names, phones, amounts).
  */
 @Service
 public class TelemetryService {
@@ -25,16 +26,16 @@ public class TelemetryService {
     }
 
     public void ingest(AuthUser user, TelemetryBatch batch) {
-        List<Map<String, Object>> events = batch.events().stream()
-            .map(e -> toNewRelicEvent(user, batch, e))
+        List<Map<String, Object>> logs = batch.events().stream()
+            .map(e -> toLogEntry(user, batch, e))
             .toList();
-        newRelic.send(events);
+        newRelic.send(logs);
     }
 
-    private Map<String, Object> toNewRelicEvent(AuthUser user, TelemetryBatch batch, TelemetryBatch.Event e) {
+    private Map<String, Object> toLogEntry(AuthUser user, TelemetryBatch batch, TelemetryBatch.Event e) {
         Map<String, Object> m = new HashMap<>();
-        // NRQL groups on eventType; the specific event goes in `event`.
-        m.put("eventType", "VmMobile");
+        // `message` is the Log API's primary field; `event` is the queryable attribute NRQL facets on.
+        m.put("message", e.name());
         m.put("event", e.name());
         m.put("timestamp", e.ts() != null ? e.ts() : System.currentTimeMillis());
 

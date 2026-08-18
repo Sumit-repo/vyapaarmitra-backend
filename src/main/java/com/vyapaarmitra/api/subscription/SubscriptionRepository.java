@@ -1,6 +1,7 @@
 package com.vyapaarmitra.api.subscription;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,6 +14,10 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
     Optional<Subscription> findByBusinessId(UUID businessId);
 
     Optional<Subscription> findByGatewaySubId(String gatewaySubId);
+
+    /** Paid subs whose period ends within a window — the expiry-reminder job's daily scan. */
+    List<Subscription> findByStatusAndCurrentPeriodEndBetween(SubscriptionStatus status,
+                                                              Instant from, Instant to);
 
     /**
      * Flip trials whose window has fully lapsed to EXPIRED. Effective-plan already

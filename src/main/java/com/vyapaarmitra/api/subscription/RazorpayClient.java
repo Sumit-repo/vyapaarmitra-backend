@@ -4,9 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vyapaarmitra.api.common.ApiException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Base64;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -43,80 +41,30 @@ public class RazorpayClient {
         this.restClient = RestClient.builder().baseUrl(BASE_URL).build();
     }
 
-    public record RazorpaySubscription(String id, String shortUrl, String status) {
+    public record RazorpayPaymentLink(String id, String shortUrl, String status) {
     }
 
     /**
-     * Creates (or reuses) a Razorpay customer carrying the shop's GSTIN, so the tax
-     * invoice Razorpay raises for the SaaS charge is GST-valid. Returns the customer id,
-     * or null if the gateway couldn't create one (checkout still proceeds without it).
+     * Creates a one-time hosted payment link (no mandate — nothing auto-renews) and returns
+     * its short URL. The shopkeeper pays on Razorpay's hosted page; the {@code payment_link.paid}
+     * webhook then extends their access (see {@link RazorpayWebhookService}).
      */
-    public String createCustomerWithGstin(String name, String gstin) {
+    public RazorpayPaymentLink createPaymentLink(long amountPaise, String description,
+                                                 UUID businessId, String referenceId) {
         Map<String, Object> body = Map.of(
-            "name", name,
-            "gstin", gstin,
-            // Return the existing customer instead of erroring if one already matches.
-            "fail_existing", 0);
-        JsonNode res = post("/customers", body);
-        return res.path("id").asText(null);
-    }
-
-    /**
-     * Creates a subscription for a plan and returns the hosted checkout link.
-     * When {@code customerId} is non-null the subscription is tied to that customer
-     * (carrying its GSTIN onto the invoice).
-     */
-    public RazorpaySubscription createSubscription(String planId, int totalCount, UUID businessId,
-                                                   String customerId) {
-        Map<String, Object> body = new java.util.HashMap<>(Map.of(
-            "plan_id", planId,
-            "total_count", totalCount,
-            "customer_notify", 1,
-            "notes", Map.of("businessId", businessId.toString())));
-        if (customerId != null && !customerId.isBlank()) {
-            body.put("customer_id", customerId);
-        }
-        JsonNode res = post("/subscriptions", body);
-        return new RazorpaySubscription(
+            "amount", amountPaise,
+            "currency", "INR",
+            "description", description,
+            "reference_id", referenceId,
+            // We drive our own SMS/WhatsApp expiry reminders — don't double-notify from Razorpay.
+            "notify", Map.of("sms", false, "email", false),
+            "reminder_enable", false,
+            "notes", Map.of("businessId", businessId.toString()));
+        JsonNode res = post("/payment_links", body);
+        return new RazorpayPaymentLink(
             res.path("id").asText(null),
             res.path("short_url").asText(null),
             res.path("status").asText(null));
-    }
-
-    /** Cancels at the end of the current cycle — the shop keeps access until then. */
-    public void cancelAtCycleEnd(String subscriptionId) {
-        post("/subscriptions/" + subscriptionId + "/cancel", Map.of("cancel_at_cycle_end", 1));
-    }
-
-    public record RazorpayInvoice(String id, String status, long amount, Long issuedAt, String shortUrl) {
-    }
-
-    /** Invoices/receipts Razorpay has issued for a subscription (newest first). */
-    public List<RazorpayInvoice> listInvoices(String subscriptionId) {
-        JsonNode res = get("/invoices?subscription_id=" + subscriptionId + "&count=100");
-        List<RazorpayInvoice> out = new ArrayList<>();
-        for (JsonNode n : res.path("items")) {
-            out.add(new RazorpayInvoice(
-                n.path("id").asText(null),
-                n.path("status").asText(null),
-                n.path("amount").asLong(0),
-                n.hasNonNull("issued_at") ? n.path("issued_at").asLong() : null,
-                n.path("short_url").asText(null)));
-        }
-        return out;
-    }
-
-    private JsonNode get(String path) {
-        try {
-            String json = restClient.get()
-                .uri(path)
-                .header("Authorization", basicAuth())
-                .retrieve()
-                .body(String.class);
-            return MAPPER.readTree(json);
-        } catch (RestClientException | com.fasterxml.jackson.core.JsonProcessingException e) {
-            throw gatewayError("GET", path, e);
-        }
     }
 
     private JsonNode post(String path, Object body) {

@@ -58,7 +58,7 @@ public class RazorpayWebhookController {
         }
         // Fall back to a stable synthetic id if the header is missing, so idempotency still holds.
         String id = eventId != null ? eventId
-            : eventType + ":" + root.path("payload").path("subscription").path("entity").path("id").asText("")
+            : eventType + ":" + root.path("payload").path("payment_link").path("entity").path("id").asText("")
               + ":" + root.path("created_at").asText("");
 
         webhookService.handle(eventType, id, root, rawBody);
