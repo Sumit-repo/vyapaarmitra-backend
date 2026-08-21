@@ -10,7 +10,11 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.util.UUID;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -46,6 +50,17 @@ public class InvoiceController {
     @GetMapping("/invoices/{id}")
     public InvoiceResponse get(@AuthenticationPrincipal AuthUser authUser, @PathVariable UUID id) {
         return invoiceService.get(authUser, id);
+    }
+
+    /** Render a bill to PDF — consumed by the app (share) and the web dashboard (view/print). */
+    @GetMapping("/invoices/{id}/pdf")
+    public ResponseEntity<byte[]> pdf(@AuthenticationPrincipal AuthUser authUser, @PathVariable UUID id) {
+        byte[] pdf = invoiceService.pdf(authUser, id);
+        return ResponseEntity.ok()
+            .contentType(MediaType.APPLICATION_PDF)
+            .header(HttpHeaders.CONTENT_DISPOSITION,
+                ContentDisposition.inline().filename("bill-" + id + ".pdf").toString())
+            .body(pdf);
     }
 
     @PostMapping("/invoices")

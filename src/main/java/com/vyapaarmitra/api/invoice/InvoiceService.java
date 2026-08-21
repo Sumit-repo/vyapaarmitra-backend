@@ -2,8 +2,11 @@ package com.vyapaarmitra.api.invoice;
 
 import com.vyapaarmitra.api.auth.AuthUser;
 import com.vyapaarmitra.api.business.BranchAccessService;
+import com.vyapaarmitra.api.business.Business;
+import com.vyapaarmitra.api.business.BusinessRepository;
 import com.vyapaarmitra.api.common.ApiException;
 import com.vyapaarmitra.api.common.PageResponse;
+import com.vyapaarmitra.api.pdf.PdfRenderer;
 import com.vyapaarmitra.api.invoice.InvoiceDtos.CreateInvoiceRequest;
 import com.vyapaarmitra.api.invoice.InvoiceDtos.InvoiceListItem;
 import com.vyapaarmitra.api.invoice.InvoiceDtos.InvoiceResponse;
@@ -31,15 +34,21 @@ public class InvoiceService {
     private final BranchAccessService branchAccessService;
     private final LedgerService ledgerService;
     private final UserDirectory userDirectory;
+    private final BusinessRepository businessRepository;
+    private final PdfRenderer pdfRenderer;
 
     public InvoiceService(InvoiceRepository invoiceRepository,
                           BranchAccessService branchAccessService,
                           LedgerService ledgerService,
-                          UserDirectory userDirectory) {
+                          UserDirectory userDirectory,
+                          BusinessRepository businessRepository,
+                          PdfRenderer pdfRenderer) {
         this.invoiceRepository = invoiceRepository;
         this.branchAccessService = branchAccessService;
         this.ledgerService = ledgerService;
         this.userDirectory = userDirectory;
+        this.businessRepository = businessRepository;
+        this.pdfRenderer = pdfRenderer;
     }
 
     @Transactional(readOnly = true)
@@ -61,6 +70,19 @@ public class InvoiceService {
     @Transactional(readOnly = true)
     public InvoiceResponse get(AuthUser authUser, UUID id) {
         return respond(loadAccessible(authUser, id));
+    }
+
+    /**
+     * Render a bill to PDF bytes (served to both the app and the web dashboard). Branded for
+     * now; TODO plan-gate the footer off for paid plans once a plan lookup is wired here.
+     */
+    @Transactional(readOnly = true)
+    public byte[] pdf(AuthUser authUser, UUID id) {
+        Invoice invoice = loadAccessible(authUser, id);
+        String shopName = businessRepository.findById(invoice.getBusinessId())
+            .map(Business::getName).orElse("My Shop");
+        String html = BillPdfHtml.build(respond(invoice), shopName, true);
+        return pdfRenderer.render(html);
     }
 
     /** Wraps an invoice with its resolved creator name (business-local). */
