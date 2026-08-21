@@ -21,15 +21,19 @@ public final class BillPdfHtml {
     private static final ZoneId IST = ZoneId.of("Asia/Kolkata");
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH);
     // ₹ and Devanagari render via the bundled NotoSans font (see PdfRenderer).
+    // openhtmltopdf renders the <a href> as a clickable link in the PDF.
     private static final String BRAND_TAGLINE =
-        "Banaya gaya VyapaarMitra se - free khata &amp; GST billing for shops";
+        "<a href=\"https://vyapaarmitra.vercel.app/\">VyapaarMitra</a>"
+        + " - free khata &amp; GST billing for shops";
 
     private BillPdfHtml() {
     }
 
     public static String build(InvoiceResponse bill, String shopName, boolean branding) {
         boolean pakka = bill.billType() == BillType.PAKKA;
-        String heading = pakka ? "TAX INVOICE" : "ESTIMATE";
+        // Kaccha reads "INVOICE" (not "TAX INVOICE") and still renders NO GSTIN / no tax
+        // columns — a plain invoice for an unregistered trader, clear of CGST §122.
+        String heading = pakka ? "TAX INVOICE" : "INVOICE";
 
         StringBuilder rows = new StringBuilder();
         int i = 1;
@@ -131,7 +135,8 @@ public final class BillPdfHtml {
             + ".balance.due { color: #C0392B; }"
             + ".balance.paid { color: #1E8E3E; }"
             + ".notes { margin-top: 14px; color: #444; }"
-            + ".brand { margin-top: 26px; padding-top: 10px; border-top: 1px dashed #ccc; text-align: center; color: #6b6b6b; font-size: 10px; }";
+            + ".brand { margin-top: 26px; padding-top: 10px; border-top: 1px dashed #ccc; text-align: center; color: #6b6b6b; font-size: 10px; }"
+            + ".brand a { color: #015FAD; text-decoration: underline; }";
     }
 
     private static String td(String cls, String html) {

@@ -36,12 +36,14 @@ class BillPdfHtmlTest {
     }
 
     @Test
-    void kacchaIsEstimateWithoutGstin() {
+    void kacchaIsInvoiceWithoutGstin() {
         String html = BillPdfHtml.build(
             bill(BillType.KACCHA, false, List.of(item("Sugar", null, null)),
                 BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, "Ramesh"),
             "Bhagat Stores", true);
-        assertTrue(html.contains("ESTIMATE"));
+        assertTrue(html.contains(">INVOICE<"));
+        // Guardrail: a plain "Invoice" for an unregistered trader — never "Tax Invoice",
+        // no GSTIN, no tax columns (that combo invites CGST §122 penalties).
         assertFalse(html.contains("TAX INVOICE"));
         assertFalse(html.contains("GSTIN"));
         assertFalse(html.contains("CGST"));
@@ -76,11 +78,12 @@ class BillPdfHtmlTest {
     }
 
     @Test
-    void brandingTogglesTheFooter() {
+    void brandingTogglesTheFooterWithAClickableLink() {
         InvoiceResponse b = bill(BillType.KACCHA, false, List.of(item("Sugar", null, null)),
             BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, "R");
-        assertTrue(BillPdfHtml.build(b, "S", true).contains("VyapaarMitra"));
-        assertFalse(BillPdfHtml.build(b, "S", false).contains("Banaya gaya VyapaarMitra"));
+        String branded = BillPdfHtml.build(b, "S", true);
+        assertTrue(branded.contains("<a href=\"https://vyapaarmitra.vercel.app/\">VyapaarMitra</a>"));
+        assertFalse(BillPdfHtml.build(b, "S", false).contains("VyapaarMitra"));
     }
 
     @Test
@@ -100,6 +103,8 @@ class BillPdfHtmlTest {
             bill(BillType.PAKKA, false, List.of(item("सीमेंट", "2523", new BigDecimal("18"))),
                 new BigDecimal("36"), new BigDecimal("36"), BigDecimal.ZERO, "रमेश शर्मा"),
             "भगत स्टोर्स", true);
+        // The branded anchor must survive into the XHTML the renderer consumes.
+        assertTrue(html.contains("<a href=\"https://vyapaarmitra.vercel.app/\">VyapaarMitra</a>"));
         byte[] pdf = new PdfRenderer().render(html);
         assertTrue(pdf.length > 0);
         // PDF magic number — proves the XHTML was well-formed enough to render.

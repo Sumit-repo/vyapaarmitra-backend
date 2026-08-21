@@ -46,13 +46,16 @@ class StatementPdfHtmlTest {
         String empty = StatementPdfHtml.build(statement(1, List.of()), "S", false);
         assertTrue(empty.contains("No entries in this period"));
         assertTrue(empty.contains("last 1 month"));
-        assertFalse(empty.contains("Banaya gaya VyapaarMitra"));
+        assertFalse(empty.contains("VyapaarMitra"));
+        String branded = StatementPdfHtml.build(statement(1, List.of()), "S", true);
+        assertTrue(branded.contains("<a href=\"https://vyapaarmitra.vercel.app/\">VyapaarMitra</a>"));
     }
 
     @Test
     void rendersToValidPdf() {
         String html = StatementPdfHtml.build(statement(6,
             List.of(row(EntryType.CREDIT, "500", "note"))), "S", true);
+        assertTrue(html.contains("<a href=\"https://vyapaarmitra.vercel.app/\">VyapaarMitra</a>"));
         byte[] pdf = new PdfRenderer().render(html);
         assertTrue(pdf.length > 0);
         assertEquals("%PDF-", new String(pdf, 0, 5, StandardCharsets.ISO_8859_1));

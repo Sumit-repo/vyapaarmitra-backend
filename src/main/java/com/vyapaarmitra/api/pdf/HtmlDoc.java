@@ -10,8 +10,10 @@ import java.math.RoundingMode;
  */
 public final class HtmlDoc {
 
+    // openhtmltopdf renders the <a href> as a clickable link in the PDF.
     private static final String BRAND_TAGLINE =
-        "Banaya gaya VyapaarMitra se - free khata &amp; GST billing for shops";
+        "<a href=\"https://vyapaarmitra.vercel.app/\">VyapaarMitra</a>"
+        + " - free khata &amp; GST billing for shops";
 
     private HtmlDoc() {
     }
@@ -52,7 +54,8 @@ public final class HtmlDoc {
             + ".summary .k { font-size: 10px; color: #6b6b6b; }"
             + ".summary .v { font-size: 15px; font-weight: bold; }"
             + ".notes-col { width: 150px; }"
-            + ".brand { margin-top: 26px; padding-top: 10px; border-top: 1px dashed #ccc; text-align: center; color: #6b6b6b; font-size: 10px; }";
+            + ".brand { margin-top: 26px; padding-top: 10px; border-top: 1px dashed #ccc; text-align: center; color: #6b6b6b; font-size: 10px; }"
+            + ".brand a { color: #015FAD; text-decoration: underline; }";
     }
 
     /** Escape the five XML-significant chars so shop/customer/note text can't break the doc. */
