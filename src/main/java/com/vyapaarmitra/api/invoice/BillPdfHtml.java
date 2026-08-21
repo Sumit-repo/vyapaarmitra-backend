@@ -2,7 +2,6 @@ package com.vyapaarmitra.api.invoice;
 
 import com.vyapaarmitra.api.invoice.InvoiceDtos.InvoiceResponse;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
@@ -144,19 +143,9 @@ public final class BillPdfHtml {
             + "<td class=\"num\">" + value + "</td></tr>";
     }
 
-    /** Indian-grouped rupees, e.g. 130945 → "₹1,30,945" (rounded to whole rupees for display). */
+    /** Indian-grouped rupees — one source of truth in HtmlDoc. */
     static String rupees(BigDecimal v) {
-        if (v == null) v = BigDecimal.ZERO;
-        boolean neg = v.signum() < 0;
-        String digits = v.abs().setScale(0, RoundingMode.HALF_UP).toPlainString();
-        StringBuilder grouped = new StringBuilder();
-        int len = digits.length();
-        for (int idx = 0; idx < len; idx++) {
-            int fromEnd = len - idx;
-            grouped.append(digits.charAt(idx));
-            if (fromEnd > 3 && (fromEnd - 3) % 2 == 0 && fromEnd != len) grouped.append(',');
-        }
-        return (neg ? "-" : "") + "₹" + grouped;
+        return com.vyapaarmitra.api.pdf.HtmlDoc.rupees(v);
     }
 
     private static String plain(BigDecimal v) {

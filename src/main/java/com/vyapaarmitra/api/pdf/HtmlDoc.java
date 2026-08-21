@@ -65,17 +65,24 @@ public final class HtmlDoc {
             .replace("'", "&#39;");
     }
 
-    /** Indian-grouped rupees, e.g. 130945 → "Rs 1,30,945" (whole rupees; ASCII until a font is bundled). */
+    /** Indian-grouped rupees, e.g. 175145 → "₹1,75,145" (last 3 digits, then groups of 2). */
     public static String rupees(BigDecimal v) {
         if (v == null) v = BigDecimal.ZERO;
         boolean neg = v.signum() < 0;
-        String digits = v.abs().setScale(0, RoundingMode.HALF_UP).toPlainString();
-        StringBuilder grouped = new StringBuilder();
-        int len = digits.length();
-        for (int idx = 0; idx < len; idx++) {
-            int fromEnd = len - idx;
-            grouped.append(digits.charAt(idx));
-            if (fromEnd > 3 && (fromEnd - 3) % 2 == 0 && fromEnd != len) grouped.append(',');
+        String s = v.abs().setScale(0, RoundingMode.HALF_UP).toPlainString();
+        String grouped;
+        if (s.length() <= 3) {
+            grouped = s;
+        } else {
+            String last3 = s.substring(s.length() - 3);
+            String prefix = s.substring(0, s.length() - 3);
+            StringBuilder g = new StringBuilder();
+            int c = 0;
+            for (int i = prefix.length() - 1; i >= 0; i--) {
+                g.insert(0, prefix.charAt(i));
+                if (++c % 2 == 0 && i > 0) g.insert(0, ',');
+            }
+            grouped = g + "," + last3;
         }
         return (neg ? "-" : "") + "₹" + grouped;
     }
