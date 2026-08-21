@@ -168,6 +168,21 @@ public class AuthService {
         return tokenIssuer.toMe(user, membershipService.require(user.getId(), authUser.businessId()));
     }
 
+    /**
+     * Set (or replace) the identity's password. No old-password check: the caller is
+     * already authenticated (e.g. just verified an email OTP in the reset flow), which is
+     * the proof of identity. Also lets a Google-/OTP-only account add a password.
+     */
+    @Transactional
+    public MeResponse setPassword(AuthUser authUser, String newPassword) {
+        User user = userRepository.findById(authUser.id())
+            .filter(User::isActive)
+            .orElseThrow(() -> ApiException.unauthorized("User no longer exists"));
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        return tokenIssuer.toMe(user, membershipService.require(user.getId(), authUser.businessId()));
+    }
+
     @Transactional(readOnly = true)
     public MeResponse me(AuthUser authUser) {
         User user = userRepository.findById(authUser.id())

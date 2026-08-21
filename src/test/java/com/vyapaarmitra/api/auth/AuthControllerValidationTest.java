@@ -1,6 +1,7 @@
 package com.vyapaarmitra.api.auth;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -182,5 +183,31 @@ class AuthControllerValidationTest {
                 .content("{}"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error.details.businessId").exists());
+    }
+
+    @Test
+    void setPasswordRejectsBlankPassword() throws Exception {
+        mockMvc.perform(put("/api/v1/me/password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"newPassword\":\"\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.details.newPassword").exists());
+    }
+
+    @Test
+    void setPasswordRejectsShortPassword() throws Exception {
+        mockMvc.perform(put("/api/v1/me/password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"newPassword\":\"short\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.details.newPassword").exists());
+    }
+
+    @Test
+    void setPasswordAcceptsValidRequest() throws Exception {
+        mockMvc.perform(put("/api/v1/me/password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"newPassword\":\"newsecret123\"}"))
+            .andExpect(status().isOk());
     }
 }

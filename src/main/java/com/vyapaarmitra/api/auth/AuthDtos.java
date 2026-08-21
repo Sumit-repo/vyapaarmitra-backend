@@ -80,6 +80,14 @@ public final class AuthDtos {
     public record UpdateProfileRequest(@NotBlank @Size(max = 120) String fullName) {
     }
 
+    /**
+     * Set (or replace) the signed-in identity's password. Used by the email-OTP reset
+     * flow (the caller just proved identity by verifying a code) and to add a password
+     * to a Google-/OTP-only account. No old password: the authenticated session is the proof.
+     */
+    public record SetPasswordRequest(@NotBlank @Size(min = 8, max = 100) String newPassword) {
+    }
+
     public record TokenResponse(String accessToken, String refreshToken, MeResponse user) {
     }
 

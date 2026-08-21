@@ -12,6 +12,7 @@ import com.vyapaarmitra.api.auth.AuthDtos.RefreshRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.RegisterRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.SelectBusinessRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.SetDefaultBusinessRequest;
+import com.vyapaarmitra.api.auth.AuthDtos.SetPasswordRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.SetPreferredBranchRequest;
 import com.vyapaarmitra.api.auth.AuthDtos.TokenResponse;
 import com.vyapaarmitra.api.auth.AuthDtos.UpdateProfileRequest;
@@ -103,6 +104,17 @@ public class AuthController {
     public MeResponse updateProfile(@AuthenticationPrincipal AuthUser authUser,
                                     @Valid @RequestBody UpdateProfileRequest request) {
         return authService.updateProfile(authUser, request.fullName());
+    }
+
+    /**
+     * Set (or replace) the caller's password. No old password required — the authenticated
+     * session is the proof, so the email-OTP reset flow can call this right after verifying
+     * a code, and Google-/OTP-only accounts can add a password.
+     */
+    @PutMapping("/me/password")
+    public MeResponse setPassword(@AuthenticationPrincipal AuthUser authUser,
+                                  @Valid @RequestBody SetPasswordRequest request) {
+        return authService.setPassword(authUser, request.newPassword());
     }
 
     /** Pin the identity's default shop (the one login lands on). */
