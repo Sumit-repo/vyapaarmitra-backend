@@ -151,11 +151,12 @@ public class BusinessProvisioningService {
             "Namaste {{customer_name}} ji, {{branch_name}} se. Aapka {{amount_due}} baaki hai. "
                 + "Jab suvidha ho, kripya settle kar dein. Dhanyavaad!");
         seedTemplate(business, TemplateChannel.WHATSAPP, "firm_reminder", "Firm reminder",
-            "{{customer_name}} ji, {{branch_name}} se reminder: {{amount_due}} {{overdue_days}} din "
-                + "se pending hai (due date {{due_date}}). Kripya jaldi payment karein.");
+            "{{customer_name}} ji, {{branch_name}} se baat kar rahe hain. Aapka {{amount_due}} "
+                + "pichle {{overdue_days}} din se baaki hai, jiski due date {{due_date}} thi. "
+                + "Kripya jald se jald payment clear kar dein.");
         seedTemplate(business, TemplateChannel.SMS, "monthly_settlement", "Monthly settlement",
-            "{{customer_name}} ji, is mahine ka hisaab: {{amount_due}} due hai. "
-                + "{{branch_name}}. Kripya settle karein.");
+            "{{customer_name}} ji, {{branch_name}} se is mahine ka kul hisaab {{amount_due}} "
+                + "baaki hai. Kripya samay par settle kar dein. Dhanyavaad!");
     }
 
     private void seedTemplate(Business business, TemplateChannel channel, String category,
