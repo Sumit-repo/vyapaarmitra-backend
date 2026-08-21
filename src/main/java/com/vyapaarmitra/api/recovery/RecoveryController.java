@@ -8,6 +8,10 @@ import com.vyapaarmitra.api.subscription.PlanGuard;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.util.UUID;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,5 +38,18 @@ public class RecoveryController {
                                             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
         planGuard.requireFeature(authUser, Feature.RECOVERY, "recovery");
         return recoveryService.today(authUser, branchId, page, size);
+    }
+
+    /** Overdue list as a PDF — internal report the shopkeeper emails to self. Recovery-gated. */
+    @GetMapping("/overdue/pdf")
+    public ResponseEntity<byte[]> overduePdf(@AuthenticationPrincipal AuthUser authUser,
+                                             @RequestParam(required = false) UUID branchId) {
+        planGuard.requireFeature(authUser, Feature.RECOVERY, "recovery");
+        byte[] pdf = recoveryService.overduePdf(authUser, branchId);
+        return ResponseEntity.ok()
+            .contentType(MediaType.APPLICATION_PDF)
+            .header(HttpHeaders.CONTENT_DISPOSITION,
+                ContentDisposition.inline().filename("overdue.pdf").toString())
+            .body(pdf);
     }
 }

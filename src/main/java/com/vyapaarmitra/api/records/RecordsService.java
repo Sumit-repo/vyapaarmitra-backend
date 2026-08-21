@@ -2,8 +2,11 @@ package com.vyapaarmitra.api.records;
 
 import com.vyapaarmitra.api.auth.AuthUser;
 import com.vyapaarmitra.api.business.BranchAccessService;
+import com.vyapaarmitra.api.business.Business;
+import com.vyapaarmitra.api.business.BusinessRepository;
 import com.vyapaarmitra.api.common.AppTime;
 import com.vyapaarmitra.api.customer.CustomerRepository;
+import com.vyapaarmitra.api.pdf.PdfRenderer;
 import com.vyapaarmitra.api.ledger.EntryType;
 import com.vyapaarmitra.api.ledger.LedgerEntry;
 import com.vyapaarmitra.api.ledger.LedgerEntryRepository;
@@ -33,15 +36,30 @@ public class RecordsService {
     private final CustomerRepository customerRepository;
     private final BranchAccessService branchAccessService;
     private final AppTime appTime;
+    private final BusinessRepository businessRepository;
+    private final PdfRenderer pdfRenderer;
 
     public RecordsService(LedgerEntryRepository ledgerEntryRepository,
                           CustomerRepository customerRepository,
                           BranchAccessService branchAccessService,
-                          AppTime appTime) {
+                          AppTime appTime,
+                          BusinessRepository businessRepository,
+                          PdfRenderer pdfRenderer) {
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.customerRepository = customerRepository;
         this.branchAccessService = branchAccessService;
         this.appTime = appTime;
+        this.businessRepository = businessRepository;
+        this.pdfRenderer = pdfRenderer;
+    }
+
+    /** Render the statement to a PDF (served to the app + web; emailed to self/CA). Branded for now. */
+    @Transactional(readOnly = true)
+    public byte[] statementPdf(AuthUser authUser, UUID branchId, int months) {
+        StatementResponse st = statement(authUser, branchId, months);
+        String shopName = businessRepository.findById(authUser.businessId())
+            .map(Business::getName).orElse("My Shop");
+        return pdfRenderer.render(StatementPdfHtml.build(st, shopName, true));
     }
 
     public record StatementRow(UUID id, UUID customerId, String customerName, EntryType type,

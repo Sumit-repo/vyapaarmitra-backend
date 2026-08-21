@@ -7,6 +7,10 @@ import com.vyapaarmitra.api.subscription.PlanGuard;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.util.UUID;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,5 +36,19 @@ public class RecordsController {
                                        @RequestParam(defaultValue = "1") @Min(1) @Max(6) int months) {
         planGuard.requireFeature(authUser, Feature.REPORTS, "reports");
         return recordsService.statement(authUser, branchId, months);
+    }
+
+    /** Statement as a PDF — app share + web view; reports feature-gated like the JSON view. */
+    @GetMapping("/statement/pdf")
+    public ResponseEntity<byte[]> statementPdf(@AuthenticationPrincipal AuthUser authUser,
+                                               @RequestParam(required = false) UUID branchId,
+                                               @RequestParam(defaultValue = "1") @Min(1) @Max(6) int months) {
+        planGuard.requireFeature(authUser, Feature.REPORTS, "reports");
+        byte[] pdf = recordsService.statementPdf(authUser, branchId, months);
+        return ResponseEntity.ok()
+            .contentType(MediaType.APPLICATION_PDF)
+            .header(HttpHeaders.CONTENT_DISPOSITION,
+                ContentDisposition.inline().filename("statement.pdf").toString())
+            .body(pdf);
     }
 }

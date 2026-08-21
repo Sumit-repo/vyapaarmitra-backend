@@ -2,14 +2,18 @@ package com.vyapaarmitra.api.recovery;
 
 import com.vyapaarmitra.api.auth.AuthUser;
 import com.vyapaarmitra.api.business.BranchAccessService;
+import com.vyapaarmitra.api.business.Business;
+import com.vyapaarmitra.api.business.BusinessRepository;
 import com.vyapaarmitra.api.common.AppTime;
 import com.vyapaarmitra.api.common.PageResponse;
 import com.vyapaarmitra.api.customer.Customer;
 import com.vyapaarmitra.api.customer.CustomerRepository;
 import com.vyapaarmitra.api.customer.TrustBucket;
+import com.vyapaarmitra.api.pdf.PdfRenderer;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
@@ -25,13 +29,28 @@ public class RecoveryService {
     private final CustomerRepository customerRepository;
     private final BranchAccessService branchAccessService;
     private final AppTime appTime;
+    private final BusinessRepository businessRepository;
+    private final PdfRenderer pdfRenderer;
 
     public RecoveryService(CustomerRepository customerRepository,
                            BranchAccessService branchAccessService,
-                           AppTime appTime) {
+                           AppTime appTime,
+                           BusinessRepository businessRepository,
+                           PdfRenderer pdfRenderer) {
         this.customerRepository = customerRepository;
         this.branchAccessService = branchAccessService;
         this.appTime = appTime;
+        this.businessRepository = businessRepository;
+        this.pdfRenderer = pdfRenderer;
+    }
+
+    /** Render the overdue list to a PDF (internal — the shopkeeper emails it to self). Branded for now. */
+    @Transactional(readOnly = true)
+    public byte[] overduePdf(AuthUser authUser, UUID branchId) {
+        List<RecoveryItem> items = today(authUser, branchId, 0, MAX_PAGE_SIZE).items();
+        String shopName = businessRepository.findById(authUser.businessId())
+            .map(Business::getName).orElse("My Shop");
+        return pdfRenderer.render(OverduePdfHtml.build(items, shopName, true));
     }
 
     public record RecoveryItem(UUID customerId, UUID branchId, String name, String phone,
