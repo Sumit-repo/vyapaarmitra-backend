@@ -95,10 +95,11 @@ class BillPdfHtmlTest {
 
     @Test
     void producedHtmlRendersToAValidPdf() {
+        // Hindi party/item + ₹ exercise the bundled Devanagari/Rupee font path.
         String html = BillPdfHtml.build(
-            bill(BillType.PAKKA, false, List.of(item("Cement", "2523", new BigDecimal("18"))),
-                new BigDecimal("36"), new BigDecimal("36"), BigDecimal.ZERO, "Ramesh"),
-            "Bhagat Stores", true);
+            bill(BillType.PAKKA, false, List.of(item("सीमेंट", "2523", new BigDecimal("18"))),
+                new BigDecimal("36"), new BigDecimal("36"), BigDecimal.ZERO, "रमेश शर्मा"),
+            "भगत स्टोर्स", true);
         byte[] pdf = new PdfRenderer().render(html);
         assertTrue(pdf.length > 0);
         // PDF magic number — proves the XHTML was well-formed enough to render.

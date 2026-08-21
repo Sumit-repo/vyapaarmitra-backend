@@ -21,8 +21,7 @@ public final class BillPdfHtml {
 
     private static final ZoneId IST = ZoneId.of("Asia/Kolkata");
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH);
-    // ASCII-safe until a Unicode font (Noto Sans: Rupee sign + Devanagari) is bundled with
-    // the renderer; base-14 PDF fonts lack ₹, em-dash and Hindi glyphs.
+    // ₹ and Devanagari render via the bundled NotoSans font (see PdfRenderer).
     private static final String BRAND_TAGLINE =
         "Banaya gaya VyapaarMitra se - free khata &amp; GST billing for shops";
 
@@ -112,7 +111,7 @@ public final class BillPdfHtml {
 
     private static String css() {
         return "* { box-sizing: border-box; }"
-            + "body { font-family: sans-serif; color: #17181A; font-size: 12px; }"
+            + "body { font-family: 'NotoSans', sans-serif; color: #17181A; font-size: 12px; }"
             + ".head { width: 100%; border-bottom: 2px solid #17181A; }"
             + ".head-right { text-align: right; }"
             + ".shop-name { font-size: 20px; font-weight: bold; }"
@@ -157,7 +156,7 @@ public final class BillPdfHtml {
             grouped.append(digits.charAt(idx));
             if (fromEnd > 3 && (fromEnd - 3) % 2 == 0 && fromEnd != len) grouped.append(',');
         }
-        return (neg ? "-" : "") + "Rs " + grouped;
+        return (neg ? "-" : "") + "₹" + grouped;
     }
 
     private static String plain(BigDecimal v) {

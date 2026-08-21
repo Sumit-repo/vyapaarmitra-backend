@@ -21,6 +21,10 @@ public class PdfRenderer {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             PdfRendererBuilder builder = new PdfRendererBuilder();
             builder.useFastMode();
+            // Bundled Unicode font so ₹ (Rupee sign) + Devanagari (Hindi) render — base-14 PDF fonts lack them.
+            builder.useFont(
+                () -> PdfRenderer.class.getResourceAsStream("/fonts/NotoSansDevanagari-Regular.ttf"),
+                "NotoSans");
             builder.withHtmlContent(xhtml, null);
             builder.toStream(out);
             builder.run();

@@ -34,7 +34,7 @@ public final class HtmlDoc {
 
     private static String css() {
         return "* { box-sizing: border-box; }"
-            + "body { font-family: sans-serif; color: #17181A; font-size: 12px; }"
+            + "body { font-family: 'NotoSans', sans-serif; color: #17181A; font-size: 12px; }"
             + ".head { width: 100%; border-bottom: 2px solid #17181A; }"
             + ".head .right { text-align: right; }"
             + ".shop-name { font-size: 20px; font-weight: bold; }"
@@ -77,6 +77,6 @@ public final class HtmlDoc {
             grouped.append(digits.charAt(idx));
             if (fromEnd > 3 && (fromEnd - 3) % 2 == 0 && fromEnd != len) grouped.append(',');
         }
-        return (neg ? "-" : "") + "Rs " + grouped;
+        return (neg ? "-" : "") + "₹" + grouped;
     }
 }
