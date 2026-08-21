@@ -6,6 +6,7 @@ import com.vyapaarmitra.api.subscription.BillingDtos.CheckoutResponse;
 import com.vyapaarmitra.api.subscription.BillingDtos.InvoiceItem;
 import com.vyapaarmitra.api.subscription.RazorpayClient.RazorpayPaymentLink;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,8 +47,10 @@ public class BillingService {
             throw ApiException.badRequest("INVALID_PLAN", "This plan isn't purchasable.");
         }
         long amountPaise = (period == BillingPeriod.YEARLY ? price.annual() : price.monthly()) * 100L;
-        // Unique per checkout so the webhook can tie the payment back to this attempt.
-        String referenceId = "vm-" + authUser.businessId() + "-" + System.currentTimeMillis();
+        // Unique per checkout. Razorpay caps reference_id at 40 chars — a full UUID + timestamp
+        // overflows it (that 400s every checkout), so use a compact random token. Business
+        // correlation rides in `notes.businessId` and the stored payment-link id, not here.
+        String referenceId = "vm-" + UUID.randomUUID().toString().replace("-", "");
         String description = "VyapaarMitra " + plan.name() + " — "
             + (period == BillingPeriod.YEARLY ? "1 year" : "1 month");
 
