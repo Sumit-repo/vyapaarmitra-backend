@@ -13,14 +13,16 @@ import org.springframework.http.MediaType;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * In-memory fixed-window rate limiter for the auth endpoints, keyed by client IP.
- * Guards login/refresh against brute force without an external dependency. This
- * is per-instance; behind a horizontally scaled deployment it caps each instance,
- * which is sufficient for credential-stuffing protection at this scale.
+ * In-memory fixed-window rate limiter keyed by client IP. Guards the auth endpoints
+ * (login/refresh brute force) and the public share endpoints (phone last-4 guessing —
+ * defence-in-depth on top of the per-token lockout in ShareService) without an external
+ * dependency. Per-instance; behind a horizontally scaled deployment it caps each instance,
+ * which is sufficient at this scale.
  */
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final String AUTH_PREFIX = "/api/v1/auth/";
+    private static final String PUBLIC_PREFIX = "/api/v1/public/";
 
     private final boolean enabled;
     private final int limitPerMinute;
@@ -33,7 +35,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !enabled || !request.getRequestURI().startsWith(AUTH_PREFIX);
+        if (!enabled) {
+            return true;
+        }
+        String uri = request.getRequestURI();
+        return !uri.startsWith(AUTH_PREFIX) && !uri.startsWith(PUBLIC_PREFIX);
     }
 
     @Override
