@@ -10,17 +10,16 @@ public final class TemplateDtos {
     private TemplateDtos() {
     }
 
-    public record TemplateResponse(UUID id, UUID branchId, TemplateChannel channel, String category,
+    public record TemplateResponse(UUID id, UUID branchId, String category,
                                    String name, String body, boolean enabled) {
 
         public static TemplateResponse from(MessageTemplate t) {
-            return new TemplateResponse(t.getId(), t.getBranchId(), t.getChannel(), t.getCategory(),
+            return new TemplateResponse(t.getId(), t.getBranchId(), t.getCategory(),
                 t.getName(), t.getBody(), t.isEnabled());
         }
     }
 
     public record CreateTemplateRequest(UUID branchId,
-                                        @NotNull TemplateChannel channel,
                                         @NotBlank @Size(max = 50) String category,
                                         @NotBlank @Size(max = 100) String name,
                                         @NotBlank @Size(max = 1000) String body) {
@@ -35,6 +34,6 @@ public final class TemplateDtos {
     public record RenderRequest(@NotNull UUID customerId) {
     }
 
-    public record RenderResponse(UUID templateId, TemplateChannel channel, String text) {
+    public record RenderResponse(UUID templateId, String text) {
     }
 }

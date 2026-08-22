@@ -67,7 +67,6 @@ public class TemplateService {
         MessageTemplate template = new MessageTemplate();
         template.setBusinessId(authUser.businessId());
         template.setBranchId(request.branchId());
-        template.setChannel(request.channel());
         template.setCategory(request.category().trim());
         template.setName(request.name().trim());
         template.setBody(request.body());
@@ -112,7 +111,7 @@ public class TemplateService {
             throw ApiException.unprocessable("TEMPLATE_MISSING_VARIABLES",
                 "Missing values for: " + String.join(", ", result.missingVariables()));
         }
-        return new RenderResponse(template.getId(), template.getChannel(), result.text());
+        return new RenderResponse(template.getId(), result.text());
     }
 
     private Map<String, String> buildVariables(Customer customer) {

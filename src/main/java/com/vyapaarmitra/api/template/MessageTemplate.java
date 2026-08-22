@@ -2,8 +2,6 @@ package com.vyapaarmitra.api.template;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
@@ -32,10 +30,6 @@ public class MessageTemplate {
     /** Null means business-wide; otherwise scoped to one branch. */
     @Column(name = "branch_id")
     private UUID branchId;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private TemplateChannel channel;
 
     @Column(nullable = false)
     private String category;

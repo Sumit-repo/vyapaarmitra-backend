@@ -8,7 +8,6 @@ import com.vyapaarmitra.api.subscription.SubscriptionRepository;
 import com.vyapaarmitra.api.subscription.SubscriptionStatus;
 import com.vyapaarmitra.api.template.MessageTemplate;
 import com.vyapaarmitra.api.template.MessageTemplateRepository;
-import com.vyapaarmitra.api.template.TemplateChannel;
 import com.vyapaarmitra.api.user.Role;
 import com.vyapaarmitra.api.user.User;
 import com.vyapaarmitra.api.user.UserRepository;
@@ -147,23 +146,21 @@ public class BusinessProvisioningService {
     }
 
     private void seedStarterTemplates(Business business) {
-        seedTemplate(business, TemplateChannel.WHATSAPP, "soft_reminder", "Soft reminder",
+        seedTemplate(business, "soft_reminder", "Soft reminder",
             "Namaste {{customer_name}} ji, {{branch_name}} se. Aapka {{amount_due}} baaki hai. "
                 + "Jab suvidha ho, kripya settle kar dein. Dhanyavaad!");
-        seedTemplate(business, TemplateChannel.WHATSAPP, "firm_reminder", "Firm reminder",
+        seedTemplate(business, "firm_reminder", "Firm reminder",
             "{{customer_name}} ji, {{branch_name}} se baat kar rahe hain. Aapka {{amount_due}} "
                 + "pichle {{overdue_days}} din se baaki hai, jiski due date {{due_date}} thi. "
                 + "Kripya jald se jald payment clear kar dein.");
-        seedTemplate(business, TemplateChannel.SMS, "monthly_settlement", "Monthly settlement",
+        seedTemplate(business, "monthly_settlement", "Monthly settlement",
             "{{customer_name}} ji, {{branch_name}} se is mahine ka kul hisaab {{amount_due}} "
                 + "baaki hai. Kripya samay par settle kar dein. Dhanyavaad!");
     }
 
-    private void seedTemplate(Business business, TemplateChannel channel, String category,
-                              String name, String body) {
+    private void seedTemplate(Business business, String category, String name, String body) {
         MessageTemplate template = new MessageTemplate();
         template.setBusinessId(business.getId());
-        template.setChannel(channel);
         template.setCategory(category);
         template.setName(name);
         template.setBody(body);
