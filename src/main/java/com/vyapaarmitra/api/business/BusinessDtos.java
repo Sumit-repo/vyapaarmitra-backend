@@ -9,10 +9,21 @@ public final class BusinessDtos {
     private BusinessDtos() {
     }
 
-    public record BusinessResponse(UUID id, String name, String gstin) {
+    public record BusinessResponse(UUID id, String name, String gstin,
+                                   String upiVpa, String upiPayeeName) {
         public static BusinessResponse from(Business business) {
-            return new BusinessResponse(business.getId(), business.getName(), business.getGstin());
+            return new BusinessResponse(business.getId(), business.getName(), business.getGstin(),
+                business.getUpiVpa(), business.getUpiPayeeName());
         }
+    }
+
+    /**
+     * Set/clear the shop's UPI collection details. Owner or branch manager (enforced at
+     * the controller). A blank {@code upiVpa} clears both fields. VPA format is validated
+     * in the service; {@code upiPayeeName} is the name shown in the customer's UPI app.
+     */
+    public record UpdateUpiRequest(@Size(max = 256) String upiVpa,
+                                   @Size(max = 120) String upiPayeeName) {
     }
 
     /**

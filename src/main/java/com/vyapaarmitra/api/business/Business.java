@@ -32,6 +32,14 @@ public class Business {
     @Column(name = "gstin")
     private String gstin;
 
+    // UPI collection details — VPA (e.g. shop@bank) + the payee/merchant name shown in
+    // the customer's UPI app. Null when the shop hasn't set up UPI. Owner/manager editable.
+    @Column(name = "upi_vpa")
+    private String upiVpa;
+
+    @Column(name = "upi_payee_name")
+    private String upiPayeeName;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;
