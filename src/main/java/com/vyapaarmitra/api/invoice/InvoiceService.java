@@ -85,6 +85,18 @@ public class InvoiceService {
         return pdfRenderer.render(html);
     }
 
+    /** Render a bill PDF scoped to a business (public share viewer — no AuthUser). */
+    @Transactional(readOnly = true)
+    public byte[] pdfForBusiness(UUID businessId, UUID invoiceId) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+            .filter(i -> i.getBusinessId().equals(businessId))
+            .orElseThrow(() -> ApiException.notFound("Bill not found"));
+        String shopName = businessRepository.findById(businessId)
+            .map(Business::getName).orElse("My Shop");
+        String html = BillPdfHtml.build(respond(invoice), shopName, true);
+        return pdfRenderer.render(html);
+    }
+
     /** Wraps an invoice with its resolved creator name (business-local). */
     private InvoiceResponse respond(Invoice invoice) {
         return InvoiceResponse.from(invoice,

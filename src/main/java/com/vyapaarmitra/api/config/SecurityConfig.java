@@ -39,6 +39,8 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/healthz", "/actuator/health/**", "/api/v1/auth/**").permitAll()
+                // Customer share viewer — token + phone-last-4 gated in the service, not by JWT.
+                .requestMatchers("/api/v1/public/**").permitAll()
                 // Gateway webhooks are authenticated by HMAC signature, not a JWT.
                 .requestMatchers("/api/v1/webhooks/**").permitAll()
                 .anyRequest().authenticated())

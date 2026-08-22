@@ -18,6 +18,7 @@ public class JwtService {
 
     public static final String TOKEN_TYPE_ACCESS = "access";
     public static final String TOKEN_TYPE_REFRESH = "refresh";
+    public static final String TOKEN_TYPE_SHARE_VIEW = "share_view";
 
     private final SecretKey key;
     private final AppProperties.Jwt jwtProps;
@@ -58,6 +59,21 @@ public class JwtService {
             .claim("bid", membership.getBusinessId().toString())
             .issuedAt(Date.from(now))
             .expiration(Date.from(now.plus(Duration.ofDays(jwtProps.refreshTtlDays()))))
+            .signWith(key)
+            .compact();
+    }
+
+    /**
+     * Short-lived token scoping a verified public viewer to one share link (subject = the
+     * share token). Minted after the phone last-4 check; the share data/PDF endpoints require it.
+     */
+    public String createShareViewToken(String shareToken) {
+        Instant now = Instant.now();
+        return Jwts.builder()
+            .subject(shareToken)
+            .claim("typ", TOKEN_TYPE_SHARE_VIEW)
+            .issuedAt(Date.from(now))
+            .expiration(Date.from(now.plus(Duration.ofMinutes(15))))
             .signWith(key)
             .compact();
     }

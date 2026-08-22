@@ -93,7 +93,15 @@ public class LedgerService {
 
     @Transactional(readOnly = true)
     public PageResponse<EntryResponse> ledger(AuthUser authUser, UUID customerId, int page, int size) {
-        Customer customer = customerService.loadAccessible(authUser, customerId);
+        return ledgerForCustomer(customerService.loadAccessible(authUser, customerId), page, size);
+    }
+
+    /**
+     * Bounded ledger for an already-loaded/authorized customer. Shared by the authed path
+     * above and the public share viewer (authorized via the share token + phone last-4).
+     */
+    public PageResponse<EntryResponse> ledgerForCustomer(Customer customer, int page, int size) {
+        UUID customerId = customer.getId();
         var pageable = PageRequest.of(Math.max(0, page), Math.min(Math.max(1, size), MAX_PAGE_SIZE));
         Page<LedgerEntry> entries = ledgerEntryRepository
             .findByCustomerIdOrderByEntryAtDesc(customerId, pageable);
