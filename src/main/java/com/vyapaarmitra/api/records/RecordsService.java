@@ -4,7 +4,9 @@ import com.vyapaarmitra.api.auth.AuthUser;
 import com.vyapaarmitra.api.business.BranchAccessService;
 import com.vyapaarmitra.api.business.Business;
 import com.vyapaarmitra.api.business.BusinessRepository;
+import com.vyapaarmitra.api.common.ApiException;
 import com.vyapaarmitra.api.common.AppTime;
+import com.vyapaarmitra.api.customer.Customer;
 import com.vyapaarmitra.api.customer.CustomerRepository;
 import com.vyapaarmitra.api.pdf.PdfRenderer;
 import com.vyapaarmitra.api.ledger.EntryType;
@@ -55,8 +57,8 @@ public class RecordsService {
 
     /** Render the statement to a PDF (served to the app + web; emailed to self/CA). Branded for now. */
     @Transactional(readOnly = true)
-    public byte[] statementPdf(AuthUser authUser, UUID branchId, int months) {
-        StatementResponse st = statement(authUser, branchId, months);
+    public byte[] statementPdf(AuthUser authUser, UUID branchId, UUID customerId, int months) {
+        StatementResponse st = statement(authUser, branchId, customerId, months);
         String shopName = businessRepository.findById(authUser.businessId())
             .map(Business::getName).orElse("My Shop");
         return pdfRenderer.render(StatementPdfHtml.build(st, shopName, true));
@@ -71,17 +73,32 @@ public class RecordsService {
                                     BigDecimal totalPayment, BigDecimal closing, int months) {
     }
 
+    /**
+     * Passbook rows with a running net balance. Shop-wide over the scoped branches by default,
+     * or scoped to a single {@code customerId} (the per-party statement behind the ledger 3-dot).
+     */
     @Transactional(readOnly = true)
-    public StatementResponse statement(AuthUser authUser, UUID branchId, int months) {
+    public StatementResponse statement(AuthUser authUser, UUID branchId, UUID customerId, int months) {
         int span = Math.min(Math.max(1, months), MAX_MONTHS);
-        Set<UUID> branchIds = branchAccessService.scope(authUser, branchId);
-        if (branchIds.isEmpty()) {
-            return new StatementResponse(List.of(), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, span);
-        }
-
         Instant from = appTime.startOfDay(appTime.today().minusMonths(span));
-        List<LedgerEntry> entries = ledgerEntryRepository
-            .findByBranchIdInAndEntryAtGreaterThanEqualOrderByEntryAtAsc(branchIds, from);
+
+        List<LedgerEntry> entries;
+        if (customerId != null) {
+            Customer customer = customerRepository.findById(customerId)
+                .filter(c -> c.getBusinessId().equals(authUser.businessId()))
+                .orElseThrow(() -> ApiException.notFound("Customer not found"));
+            branchAccessService.assertBranchAccess(authUser, customer.getBranchId());
+            entries = ledgerEntryRepository.findByCustomerIdOrderByEntryAtAsc(customerId).stream()
+                .filter(e -> !e.getEntryAt().isBefore(from))
+                .toList();
+        } else {
+            Set<UUID> branchIds = branchAccessService.scope(authUser, branchId);
+            if (branchIds.isEmpty()) {
+                return new StatementResponse(List.of(), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, span);
+            }
+            entries = ledgerEntryRepository
+                .findByBranchIdInAndEntryAtGreaterThanEqualOrderByEntryAtAsc(branchIds, from);
+        }
 
         Map<UUID, String> names = customerNames(entries);
 

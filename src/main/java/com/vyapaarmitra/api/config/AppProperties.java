@@ -4,7 +4,7 @@ import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "app")
-public record AppProperties(String timezone, Jwt jwt, Cors cors, Bootstrap bootstrap,
+public record AppProperties(String timezone, String webUrl, Jwt jwt, Cors cors, Bootstrap bootstrap,
                             Google google, Mail mail) {
 
     public record Jwt(String secret, long accessTtlMinutes, long refreshTtlDays) {

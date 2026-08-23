@@ -40,6 +40,9 @@ management:
 
 app:
   timezone: ${APP_TIMEZONE:Asia/Kolkata}
+  # Public origin of the customer web viewer (Vercel). Used to build the /s/<token>
+  # khata link appended to every reminder. Must be set in prod (Cloud Run env).
+  web-url: ${APP_WEB_URL:http://localhost:3000}
   jwt:
     secret: ${JWT_SECRET}
     access-ttl-minutes: ${JWT_ACCESS_TTL_MINUTES:30}

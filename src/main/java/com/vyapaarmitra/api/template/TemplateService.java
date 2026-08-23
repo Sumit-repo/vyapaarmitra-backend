@@ -6,8 +6,10 @@ import com.vyapaarmitra.api.business.BranchAccessService;
 import com.vyapaarmitra.api.business.BranchRepository;
 import com.vyapaarmitra.api.common.ApiException;
 import com.vyapaarmitra.api.common.AppTime;
+import com.vyapaarmitra.api.config.AppProperties;
 import com.vyapaarmitra.api.customer.Customer;
 import com.vyapaarmitra.api.customer.CustomerService;
+import com.vyapaarmitra.api.share.ShareService;
 import com.vyapaarmitra.api.template.TemplateDtos.CreateTemplateRequest;
 import com.vyapaarmitra.api.template.TemplateDtos.RenderResponse;
 import com.vyapaarmitra.api.template.TemplateDtos.TemplateResponse;
@@ -20,29 +22,38 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class TemplateService {
 
+    private static final Logger log = LoggerFactory.getLogger(TemplateService.class);
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
     private final MessageTemplateRepository templateRepository;
     private final BranchRepository branchRepository;
     private final BranchAccessService branchAccessService;
     private final CustomerService customerService;
+    private final ShareService shareService;
+    private final AppProperties appProperties;
     private final AppTime appTime;
 
     public TemplateService(MessageTemplateRepository templateRepository,
                            BranchRepository branchRepository,
                            BranchAccessService branchAccessService,
                            CustomerService customerService,
+                           ShareService shareService,
+                           AppProperties appProperties,
                            AppTime appTime) {
         this.templateRepository = templateRepository;
         this.branchRepository = branchRepository;
         this.branchAccessService = branchAccessService;
         this.customerService = customerService;
+        this.shareService = shareService;
+        this.appProperties = appProperties;
         this.appTime = appTime;
     }
 
@@ -92,7 +103,8 @@ public class TemplateService {
         return TemplateResponse.from(templateRepository.save(template));
     }
 
-    @Transactional(readOnly = true)
+    // Not read-only: appending the khata link get-or-creates the customer's share link.
+    @Transactional
     public RenderResponse render(AuthUser authUser, UUID templateId, UUID customerId) {
         MessageTemplate template = loadOwned(authUser, templateId);
         if (!template.isEnabled()) {
@@ -111,7 +123,28 @@ public class TemplateService {
             throw ApiException.unprocessable("TEMPLATE_MISSING_VARIABLES",
                 "Missing values for: " + String.join(", ", result.missingVariables()));
         }
-        return new RenderResponse(template.getId(), result.text());
+        return new RenderResponse(template.getId(), appendKhataLink(authUser, customer, result.text()));
+    }
+
+    /**
+     * Append the customer's public khata link so every reminder carries it. Only when the party
+     * has a usable phone (the viewer's second factor is its last 4 digits) — we pre-check rather
+     * than catch, because createLedgerShare joins this transaction and its throw would mark it
+     * rollback-only, failing the whole render even if caught.
+     */
+    private String appendKhataLink(AuthUser authUser, Customer customer, String text) {
+        if (!hasLast4(customer.getPhone())) {
+            log.debug("Skipping khata link for customer {}: no usable phone", customer.getId());
+            return text;
+        }
+        String token = shareService.createLedgerShare(authUser, customer.getId());
+        String url = appProperties.webUrl().replaceAll("/+$", "") + "/s/" + token;
+        return text + "\n\nअपना हिसाब देखें / View your khata:\n" + url;
+    }
+
+    /** Mirrors ShareService: a phone is usable as the viewer's second factor only with ≥4 digits. */
+    private static boolean hasLast4(String phone) {
+        return (phone == null ? "" : phone.replaceAll("\\D", "")).length() >= 4;
     }
 
     private Map<String, String> buildVariables(Customer customer) {

@@ -48,10 +48,14 @@ public class PdfShareController {
     @GetMapping("/records/statement/pdf/link")
     public PdfLink statementLink(@AuthenticationPrincipal AuthUser authUser,
                                  @RequestParam(required = false) UUID branchId,
+                                 @RequestParam(required = false) UUID customerId,
                                  @RequestParam(defaultValue = "1") @Min(1) @Max(6) int months) {
-        planGuard.requireFeature(authUser, Feature.REPORTS, "reports");
-        return new PdfLink(pdfStorage.upload(recordsService.statementPdf(authUser, branchId, months),
-            "statement-" + authUser.businessId()));
+        // Per-party statement (customerId) is a core khata action; only the shop-wide report is gated.
+        if (customerId == null) {
+            planGuard.requireFeature(authUser, Feature.REPORTS, "reports");
+        }
+        return new PdfLink(pdfStorage.upload(recordsService.statementPdf(authUser, branchId, customerId, months),
+            "statement-" + (customerId != null ? customerId : authUser.businessId())));
     }
 
     @GetMapping("/recovery/overdue/pdf/link")
