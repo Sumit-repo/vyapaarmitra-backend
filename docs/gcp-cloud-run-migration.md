@@ -34,7 +34,9 @@ Non-goals (explicitly out of scope):
 
 **Env vars to carry over** (from `.env.example` / `render.yaml`): `DATABASE_URL`,
 `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `JWT_SECRET`, `JWT_ACCESS_TTL_MINUTES`,
-`JWT_REFRESH_TTL_DAYS`, `CORS_ALLOWED_ORIGINS`, `GOOGLE_CLIENT_IDS`, `RESEND_API_KEY`,
+`JWT_REFRESH_TTL_DAYS`, `CORS_ALLOWED_ORIGINS`, `APP_WEB_URL` (Vercel origin of the
+customer viewer — needed for the `/s/<token>` khata link on reminders; defaults to
+localhost if unset), `GOOGLE_CLIENT_IDS`, `RESEND_API_KEY`,
 `MAIL_FROM`, `OTP_TTL_MINUTES`, `RAZORPAY_*`, `NEWRELIC_*`, `APP_TIMEZONE=Asia/Kolkata`,
 `DB_POOL_SIZE=5`, and the one-time `BOOTSTRAP_*` vars.
 
