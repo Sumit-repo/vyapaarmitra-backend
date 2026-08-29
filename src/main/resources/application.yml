@@ -14,6 +14,12 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+  jackson:
+    # Reject typo'd fields instead of silently dropping them. Unknown enum values throw by
+    # default (READ_UNKNOWN_ENUM_VALUES_AS_NULL is off) → HttpMessageNotReadableException → 400,
+    # so a bad deletion-request "reason" can't 500 or silently coerce to null.
+    deserialization:
+      fail-on-unknown-properties: true
   flyway:
     enabled: true
   servlet:
@@ -76,6 +82,11 @@ app:
     ingest-key: ${NEWRELIC_INGEST_KEY:}
     # Override for the EU datacenter: https://log-api.eu.newrelic.com/log/v1
     endpoint: ${NEWRELIC_ENDPOINT:}
+  internal:
+    # Shared secret for server-to-server internal endpoints (X-Internal-Token), e.g. the
+    # account-purge safety net driven by Cloud Scheduler. When blank, internal endpoints
+    # refuse every call.
+    purge-token: ${INTERNAL_PURGE_TOKEN:}
   bootstrap:
     owner-email: ${BOOTSTRAP_OWNER_EMAIL:}
     owner-password: ${BOOTSTRAP_OWNER_PASSWORD:}

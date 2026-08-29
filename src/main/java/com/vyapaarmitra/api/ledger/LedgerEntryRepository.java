@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,6 +15,9 @@ import org.springframework.data.repository.query.Param;
 public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, UUID> {
 
     Page<LedgerEntry> findByCustomerIdOrderByEntryAtDesc(UUID customerId, Pageable pageable);
+
+    /** All ledger entries for a business — the account-export dump (bounded by the caller). */
+    List<LedgerEntry> findByBusinessIdOrderByEntryAtAsc(UUID businessId, Limit limit);
 
     List<LedgerEntry> findByCustomerIdOrderByEntryAtAsc(UUID customerId);
 

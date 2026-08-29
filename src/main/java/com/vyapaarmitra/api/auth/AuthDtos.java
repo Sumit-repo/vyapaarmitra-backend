@@ -88,7 +88,13 @@ public final class AuthDtos {
     public record SetPasswordRequest(@NotBlank @Size(min = 8, max = 100) String newPassword) {
     }
 
-    public record TokenResponse(String accessToken, String refreshToken, MeResponse user) {
+    /**
+     * A session. {@code pendingDeletion} + {@code scheduledAt} are additive (backward-compatible)
+     * flags so a client can route to the reactivation interstitial right after login during the
+     * soft-delete grace window instead of landing on home. See docs/account-deletion.md.
+     */
+    public record TokenResponse(String accessToken, String refreshToken, MeResponse user,
+                                boolean pendingDeletion, String scheduledAt) {
     }
 
     public record MeResponse(UUID id, String email, String fullName, String avatarUrl,

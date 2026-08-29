@@ -3,7 +3,9 @@ package com.vyapaarmitra.api.invoice;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,6 +15,9 @@ import org.springframework.data.repository.query.Param;
 public interface InvoiceRepository extends JpaRepository<Invoice, UUID> {
 
     Page<Invoice> findByBranchIdInOrderByCreatedAtDesc(Collection<UUID> branchIds, Pageable pageable);
+
+    /** All bills for a business — the account-export dump (bounded by the caller). */
+    List<Invoice> findByBusinessIdOrderByCreatedAtAsc(UUID businessId, Limit limit);
 
     Page<Invoice> findByBranchIdInAndBillTypeOrderByCreatedAtDesc(Collection<UUID> branchIds,
                                                                   BillType billType, Pageable pageable);

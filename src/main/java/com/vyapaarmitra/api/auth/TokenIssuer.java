@@ -7,6 +7,7 @@ import com.vyapaarmitra.api.business.BusinessRepository;
 import com.vyapaarmitra.api.membership.Membership;
 import com.vyapaarmitra.api.subscription.PlanService;
 import com.vyapaarmitra.api.user.User;
+import java.time.Instant;
 import java.util.Set;
 import org.springframework.stereotype.Component;
 
@@ -30,10 +31,13 @@ public class TokenIssuer {
     }
 
     public TokenResponse issue(User user, Membership membership) {
+        Instant scheduledAt = user.getDeletionScheduledAt();
         return new TokenResponse(
             jwtService.createAccessToken(user, membership),
             jwtService.createRefreshToken(user, membership),
-            toMe(user, membership));
+            toMe(user, membership),
+            scheduledAt != null,
+            scheduledAt != null ? scheduledAt.toString() : null);
     }
 
     public MeResponse toMe(User user, Membership membership) {

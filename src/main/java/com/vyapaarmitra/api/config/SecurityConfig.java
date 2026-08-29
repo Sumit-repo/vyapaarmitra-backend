@@ -1,5 +1,7 @@
 package com.vyapaarmitra.api.config;
 
+import com.vyapaarmitra.api.accountdeletion.PendingDeletionGuardFilter;
+import com.vyapaarmitra.api.accountdeletion.PendingDeletionLookup;
 import com.vyapaarmitra.api.auth.JwtAuthFilter;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
@@ -25,6 +27,7 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http, JwtAuthFilter jwtAuthFilter,
+                                    PendingDeletionGuardFilter pendingDeletionGuardFilter,
                                     CorsConfigurationSource corsConfigurationSource,
                                     RateLimitProperties rateLimitProperties) throws Exception {
         http
@@ -43,6 +46,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/public/**").permitAll()
                 // Gateway webhooks are authenticated by HMAC signature, not a JWT.
                 .requestMatchers("/api/v1/webhooks/**").permitAll()
+                // Internal server-to-server endpoints are gated by a shared-secret header, not a JWT.
+                .requestMatchers("/api/v1/internal/**").permitAll()
                 .anyRequest().authenticated())
             .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, e) -> {
                 response.setStatus(401);
@@ -52,7 +57,9 @@ public class SecurityConfig {
             }))
             // Rate-limit auth endpoints before authentication work happens.
             .addFilterBefore(new RateLimitFilter(rateLimitProperties), UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+            // Freeze accounts pending deletion (runs after auth so the principal is set).
+            .addFilterAfter(pendingDeletionGuardFilter, JwtAuthFilter.class);
         return http.build();
     }
 
@@ -65,6 +72,15 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
+    }
+
+    /**
+     * The freeze guard as a plain bean (not a {@code @Component}) so it's only wired into the real
+     * app's filter chain and never pulled into {@code @WebMvcTest} slices.
+     */
+    @Bean
+    PendingDeletionGuardFilter pendingDeletionGuardFilter(PendingDeletionLookup lookup) {
+        return new PendingDeletionGuardFilter(lookup);
     }
 
     @Bean

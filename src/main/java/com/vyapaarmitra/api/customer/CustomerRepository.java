@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,6 +16,9 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
 
     Page<Customer> findByBranchIdInAndActiveTrueOrderByNameAsc(Collection<UUID> branchIds,
                                                                Pageable pageable);
+
+    /** All parties for a business — the account-export dump (bounded by the caller). */
+    List<Customer> findByBusinessIdOrderByCreatedAtAsc(UUID businessId, Limit limit);
 
     @Query("""
         select c from Customer c

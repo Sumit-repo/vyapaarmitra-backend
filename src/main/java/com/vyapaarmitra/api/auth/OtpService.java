@@ -65,7 +65,9 @@ public class OtpService {
 
         boolean accountExists = userRepository.findByEmailIgnoreCase(email).isPresent();
         // Only send when it makes sense; otherwise respond identically (no enumeration signal).
-        boolean shouldSend = purpose == OtpPurpose.LOGIN ? accountExists : !accountExists;
+        // SIGNUP is the sole inverted case (send iff the email is free); LOGIN and
+        // ACCOUNT_DELETION both send iff the account exists.
+        boolean shouldSend = purpose == OtpPurpose.SIGNUP ? !accountExists : accountExists;
         if (!shouldSend) {
             return new OtpRequestResponse(ttlSeconds);
         }
@@ -100,9 +102,22 @@ public class OtpService {
 
     @Transactional
     public TokenResponse verify(OtpVerifyRequest req) {
-        String email = req.email().trim().toLowerCase();
+        String email = verifyCode(req.email(), req.code(), req.purpose());
+        return req.purpose() == OtpPurpose.LOGIN ? loginExisting(email) : signup(req, email);
+    }
+
+    /**
+     * Validate a one-time code for an email + purpose and consume it. The single source of
+     * truth for code checks (expiry, attempt cap, hash match), shared by login, signup and
+     * account-deletion step-up so the rules never drift. Throws {@link ApiException} (401) on
+     * any failure; returns the normalised email on success. Must run in a transaction so the
+     * consumed/attempts mutations persist.
+     */
+    @Transactional
+    public String verifyCode(String rawEmail, String rawCode, OtpPurpose purpose) {
+        String email = rawEmail.trim().toLowerCase();
         LoginCode code = loginCodeRepository
-            .findFirstByEmailAndPurposeAndConsumedAtIsNullOrderByCreatedAtDesc(email, req.purpose())
+            .findFirstByEmailAndPurposeAndConsumedAtIsNullOrderByCreatedAtDesc(email, purpose)
             .orElseThrow(() -> ApiException.unauthorized("Invalid or expired code"));
 
         if (code.getExpiresAt().isBefore(Instant.now())) {
@@ -112,13 +127,12 @@ public class OtpService {
             code.setConsumedAt(Instant.now());
             throw ApiException.unauthorized("Too many attempts. Please request a new code.");
         }
-        if (!passwordEncoder.matches(req.code().trim(), code.getCodeHash())) {
+        if (!passwordEncoder.matches(rawCode.trim(), code.getCodeHash())) {
             code.setAttempts(code.getAttempts() + 1);
             throw ApiException.unauthorized("Invalid or expired code");
         }
         code.setConsumedAt(Instant.now());
-
-        return req.purpose() == OtpPurpose.LOGIN ? loginExisting(email) : signup(req, email);
+        return email;
     }
 
     private TokenResponse loginExisting(String email) {

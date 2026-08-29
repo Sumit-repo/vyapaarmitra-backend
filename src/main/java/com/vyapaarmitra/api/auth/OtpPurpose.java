@@ -5,5 +5,7 @@ public enum OtpPurpose {
     /** Passwordless sign-in for an existing account. */
     LOGIN,
     /** Email-verified self-serve signup that provisions a new business. */
-    SIGNUP
+    SIGNUP,
+    /** Step-up confirmation before scheduling account deletion (existing account only). */
+    ACCOUNT_DELETION
 }

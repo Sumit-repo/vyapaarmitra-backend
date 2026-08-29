@@ -40,6 +40,12 @@ public class Business {
     @Column(name = "upi_payee_name")
     private String upiPayeeName;
 
+    // Soft-delete marker: set alongside the owner's when they schedule account deletion,
+    // cleared on reactivation. Owned businesses are purged with the owner. See
+    // docs/account-deletion.md.
+    @Column(name = "deletion_scheduled_at")
+    private Instant deletionScheduledAt;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;

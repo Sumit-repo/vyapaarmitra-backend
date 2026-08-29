@@ -85,6 +85,13 @@ public class User {
     @Column(name = "defaulter_network_consent", nullable = false)
     private boolean defaulterNetworkConsent = false;
 
+    // Soft-delete marker: when set, this identity requested account deletion and is
+    // frozen (see the freeze guard) until the 30-day grace lapses and purge hard-deletes.
+    // Cleared on reactivation. Not the same as {@code active} — login stays allowed so the
+    // client can route to the reactivation interstitial. See docs/account-deletion.md.
+    @Column(name = "deletion_scheduled_at")
+    private Instant deletionScheduledAt;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;
