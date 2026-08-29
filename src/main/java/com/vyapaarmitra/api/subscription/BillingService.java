@@ -71,6 +71,42 @@ public class BillingService {
     }
 
     /**
+     * Pull-based grant: the buyer's client calls this on returning from the hosted
+     * payment page. Checks the payment link's status server-to-server and applies the
+     * SAME grant as the {@code payment_link.paid} webhook — so activation depends on
+     * Razorpay's push only as a convenience, never as a single point of failure. Safe
+     * against the webhook racing us via the row-locked read (the loser of the race sees
+     * the cleared pending and reports ALREADY_ACTIVE).
+     */
+    @Transactional
+    public BillingDtos.VerifyResponse verify(AuthUser authUser) {
+        if (!razorpayProperties.isConfigured()) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "BILLING_DISABLED",
+                "Online payments aren't set up yet.");
+        }
+        // Locked so a landing webhook can't apply the same payment concurrently.
+        Subscription sub = subscriptionRepository.findWithLockByBusinessId(authUser.businessId())
+            .orElseGet(() -> planService.getOrCreate(authUser.businessId()));
+
+        if (sub.getPendingPlan() == null) {
+            boolean active = sub.getStatus() == SubscriptionStatus.ACTIVE;
+            return new BillingDtos.VerifyResponse(
+                active ? "ALREADY_ACTIVE" : "PENDING", planService.view(authUser.businessId()));
+        }
+        if (sub.getGatewaySubId() == null) {
+            return new BillingDtos.VerifyResponse("PENDING", planService.view(authUser.businessId()));
+        }
+        RazorpayClient.RazorpayPaymentLinkStatus link =
+            razorpayClient.fetchPaymentLink(sub.getGatewaySubId());
+        if (!"paid".equalsIgnoreCase(link.status())) {
+            return new BillingDtos.VerifyResponse("PENDING", planService.view(authUser.businessId()));
+        }
+        PaymentGrants.grant(sub);
+        subscriptionRepository.save(sub);
+        return new BillingDtos.VerifyResponse("ACTIVATED", planService.view(authUser.businessId()));
+    }
+
+    /**
      * Receipts for the caller's purchases. One-time payment links don't produce the
      * subscription-style invoice feed we used before; the hosted Razorpay receipt is the
      * record. Returns empty for now (see docs/TODO — wire payment-link receipts if needed).

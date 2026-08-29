@@ -52,8 +52,10 @@ public class RazorpayWebhookService {
         JsonNode entity = root.path("payload").path("payment_link").path("entity");
         String linkId = entity.path("id").asText(null);
         if (linkId != null) {
-            subscriptionRepository.findByGatewaySubId(linkId)
-                .ifPresent(sub -> apply(sub, eventType, entity));
+            // Row-locked so a concurrent POST /billing/verify can't apply the same
+            // payment a second time (see SubscriptionRepository.findWithLock*).
+            subscriptionRepository.findWithLockByGatewaySubId(linkId)
+                .ifPresent(sub -> apply(sub, eventType));
         } else {
             log.warn("Razorpay webhook {} carried no payment link id", eventType);
         }
@@ -62,29 +64,13 @@ public class RazorpayWebhookService {
         billingEventRepository.save(event);
     }
 
-    private void apply(Subscription sub, String eventType, JsonNode entity) {
+    private void apply(Subscription sub, String eventType) {
         if (!"payment_link.paid".equals(eventType)) {
             log.debug("Ignoring unhandled Razorpay event {}", eventType);
             return;
         }
-        // One-time purchase verified — apply the chosen tier and STACK the purchased period onto
-        // any remaining time (buying while still active extends it, never resets it).
-        if (sub.getPendingPlan() == null) {
-            return; // no pending intent (stale/duplicate link) — nothing to grant
+        if (PaymentGrants.grant(sub)) {
+            subscriptionRepository.save(sub);
         }
-        Instant now = Instant.now();
-        Instant base = (sub.getCurrentPeriodEnd() != null && sub.getCurrentPeriodEnd().isAfter(now))
-            ? sub.getCurrentPeriodEnd() : now;
-        int months = sub.getPendingBillingPeriod() == BillingPeriod.YEARLY ? 12 : 1;
-        Instant newEnd = base.atZone(ZoneOffset.UTC).plusMonths(months).toInstant();
-
-        sub.setPlan(sub.getPendingPlan());
-        sub.setBillingPeriod(sub.getPendingBillingPeriod());
-        sub.setCurrentPeriodEnd(newEnd);
-        sub.setStatus(SubscriptionStatus.ACTIVE);
-        sub.setGraceUntil(null);
-        sub.setPendingPlan(null);
-        sub.setPendingBillingPeriod(null);
-        subscriptionRepository.save(sub);
     }
 }

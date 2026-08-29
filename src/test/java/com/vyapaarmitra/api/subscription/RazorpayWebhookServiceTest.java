@@ -59,7 +59,7 @@ class RazorpayWebhookServiceTest {
         sub.setPlan(PlanTier.FREE);
         sub.setPendingPlan(PlanTier.PRO);
         sub.setPendingBillingPeriod(BillingPeriod.MONTHLY);
-        when(subscriptionRepository.findByGatewaySubId("plink_1")).thenReturn(Optional.of(sub));
+        when(subscriptionRepository.findWithLockByGatewaySubId("plink_1")).thenReturn(Optional.of(sub));
 
         Instant before = Instant.now();
         service.handle("payment_link.paid", "evt_1", root, raw);
@@ -89,7 +89,7 @@ class RazorpayWebhookServiceTest {
         sub.setCurrentPeriodEnd(existingEnd);
         sub.setPendingPlan(PlanTier.PRO);
         sub.setPendingBillingPeriod(BillingPeriod.YEARLY);
-        when(subscriptionRepository.findByGatewaySubId("plink_2")).thenReturn(Optional.of(sub));
+        when(subscriptionRepository.findWithLockByGatewaySubId("plink_2")).thenReturn(Optional.of(sub));
 
         service.handle("payment_link.paid", "evt_2", root, raw);
 
@@ -114,7 +114,7 @@ class RazorpayWebhookServiceTest {
         service.handle("payment_link.paid", "evt_1", root, raw);
 
         // No re-application: the subscription is never even looked up.
-        verify(subscriptionRepository, never()).findByGatewaySubId(eq("plink_1"));
+        verify(subscriptionRepository, never()).findWithLockByGatewaySubId(eq("plink_1"));
         verify(billingEventRepository, never()).save(any(BillingEvent.class));
     }
 }

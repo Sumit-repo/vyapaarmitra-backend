@@ -4,6 +4,7 @@ import com.vyapaarmitra.api.auth.AuthUser;
 import com.vyapaarmitra.api.subscription.BillingDtos.CheckoutRequest;
 import com.vyapaarmitra.api.subscription.BillingDtos.CheckoutResponse;
 import com.vyapaarmitra.api.subscription.BillingDtos.InvoiceItem;
+import com.vyapaarmitra.api.subscription.BillingDtos.VerifyResponse;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -30,6 +31,16 @@ public class BillingController {
     public CheckoutResponse checkout(@AuthenticationPrincipal AuthUser authUser,
                                      @Valid @RequestBody CheckoutRequest request) {
         return billingService.checkout(authUser, request.plan(), request.period());
+    }
+
+    /**
+     * Grant-by-pull, called by the buyer's client (web /billing/thanks screen, mobile app)
+     * after returning from the hosted payment page. Idempotent; returns the current plan
+     * view either way.
+     */
+    @PostMapping("/verify")
+    public BillingDtos.VerifyResponse verify(@AuthenticationPrincipal AuthUser authUser) {
+        return billingService.verify(authUser);
     }
 
     /** Cancel at period end. */

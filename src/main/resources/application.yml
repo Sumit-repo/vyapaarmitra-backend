@@ -70,6 +70,10 @@ app:
     key-secret: ${RAZORPAY_KEY_SECRET:}
     # Secret configured on the Razorpay webhook — signs every callback body.
     webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+    # Base URL the hosted payment page redirects to after payment (the web
+    # /billing/thanks screen, which pulls the grant and deep-links into the app).
+    # Blank → Razorpay shows its own end page and the buyer returns to the app by hand.
+    callback-base-url: ${RAZORPAY_CALLBACK_BASE_URL:}
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
     # Max login/refresh attempts per client IP per minute (brute-force guard).
