@@ -157,13 +157,17 @@ public class AuthService {
             .toList();
     }
 
-    /** Update the identity's own display name. */
+    /** Update the identity's own display name and phone (phone null → unchanged, matching
+     * the register path's blank→null normalization). */
     @Transactional
-    public MeResponse updateProfile(AuthUser authUser, String fullName) {
+    public MeResponse updateProfile(AuthUser authUser, String fullName, String phone) {
         User user = userRepository.findById(authUser.id())
             .filter(User::isActive)
             .orElseThrow(() -> ApiException.unauthorized("User no longer exists"));
         user.setFullName(fullName.trim());
+        if (phone != null) {
+            user.setPhone(phone.isBlank() ? null : phone.trim());
+        }
         userRepository.save(user);
         return tokenIssuer.toMe(user, membershipService.require(user.getId(), authUser.businessId()));
     }

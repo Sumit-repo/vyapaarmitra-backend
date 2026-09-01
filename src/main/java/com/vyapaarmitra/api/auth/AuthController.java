@@ -99,11 +99,11 @@ public class AuthController {
         return authService.me(authUser);
     }
 
-    /** Update the signed-in identity's own profile (display name). */
+    /** Update the signed-in identity's own profile (display name, phone). */
     @PatchMapping("/me")
     public MeResponse updateProfile(@AuthenticationPrincipal AuthUser authUser,
                                     @Valid @RequestBody UpdateProfileRequest request) {
-        return authService.updateProfile(authUser, request.fullName());
+        return authService.updateProfile(authUser, request.fullName(), request.phone());
     }
 
     /**

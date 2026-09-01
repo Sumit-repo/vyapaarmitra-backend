@@ -1,5 +1,6 @@
 package com.vyapaarmitra.api.auth;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -183,6 +184,31 @@ class AuthControllerValidationTest {
                 .content("{}"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error.details.businessId").exists());
+    }
+
+    @Test
+    void updateProfileRejectsShortPhone() throws Exception {
+        mockMvc.perform(patch("/api/v1/me")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"fullName\":\"Ramesh\",\"phone\":\"12345\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.details.phone").exists());
+    }
+
+    @Test
+    void updateProfileAcceptsNameAndPhone() throws Exception {
+        mockMvc.perform(patch("/api/v1/me")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"fullName\":\"Ramesh\",\"phone\":\"9876543210\"}"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    void updateProfileAcceptsNameOnly() throws Exception {
+        mockMvc.perform(patch("/api/v1/me")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"fullName\":\"Ramesh\"}"))
+            .andExpect(status().isOk());
     }
 
     @Test

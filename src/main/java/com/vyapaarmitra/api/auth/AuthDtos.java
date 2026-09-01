@@ -76,8 +76,11 @@ public final class AuthDtos {
     public record SetPreferredBranchRequest(UUID branchId) {
     }
 
-    /** Update the signed-in identity's own profile (currently just the display name). */
-    public record UpdateProfileRequest(@NotBlank @Size(max = 120) String fullName) {
+    /** Update the signed-in identity's own profile (display name, phone — phone is
+     * optional; null leaves it unchanged). Google-/OTP-only identities start with a
+     * null phone, so the client can backfill it here. */
+    public record UpdateProfileRequest(@NotBlank @Size(max = 120) String fullName,
+                                       @Size(min = 7, max = 20) String phone) {
     }
 
     /**
@@ -97,7 +100,7 @@ public final class AuthDtos {
                                 boolean pendingDeletion, String scheduledAt) {
     }
 
-    public record MeResponse(UUID id, String email, String fullName, String avatarUrl,
+    public record MeResponse(UUID id, String email, String phone, String fullName, String avatarUrl,
                              String businessName, Role role, UUID businessId, Set<UUID> branchIds,
                              UUID defaultBusinessId, UUID preferredBranchId, PlanView plan) {
     }
