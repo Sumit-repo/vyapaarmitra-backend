@@ -58,6 +58,7 @@ public class TemplateController {
     public RenderResponse render(@AuthenticationPrincipal AuthUser authUser,
                                  @PathVariable UUID id,
                                  @Valid @RequestBody RenderRequest request) {
-        return templateService.render(authUser, id, request.customerId());
+        return templateService.render(authUser, id, request.customerId(),
+            request.startDate(), request.endDate());
     }
 }

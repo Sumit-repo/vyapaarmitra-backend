@@ -1,10 +1,15 @@
 package com.vyapaarmitra.api.template;
 
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.vyapaarmitra.api.auth.AuthUser;
 import com.vyapaarmitra.api.auth.JwtService;
+import java.time.LocalDate;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -63,5 +68,21 @@ class TemplateControllerValidationTest {
                 .content("{}"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error.details.customerId").exists());
+    }
+
+    /** Window dates are optional (web renders without them) and parse as ISO yyyy-MM-dd. */
+    @Test
+    void renderAcceptsOptionalWindowDates() throws Exception {
+        UUID templateId = UUID.randomUUID();
+        UUID customerId = UUID.randomUUID();
+        when(templateService.render(nullable(AuthUser.class), eq(templateId), eq(customerId),
+                eq(LocalDate.of(2026, 9, 1)), eq(LocalDate.of(2026, 9, 30))))
+            .thenReturn(new TemplateDtos.RenderResponse(templateId, "Namaste"));
+
+        mockMvc.perform(post("/api/v1/templates/" + templateId + "/render")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"customerId\":\"" + customerId + "\","
+                    + "\"startDate\":\"2026-09-01\",\"endDate\":\"2026-09-30\"}"))
+            .andExpect(status().isOk());
     }
 }

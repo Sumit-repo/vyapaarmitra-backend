@@ -9,12 +9,15 @@ import com.vyapaarmitra.api.common.AppTime;
 import com.vyapaarmitra.api.config.AppProperties;
 import com.vyapaarmitra.api.customer.Customer;
 import com.vyapaarmitra.api.customer.CustomerService;
+import com.vyapaarmitra.api.ledger.EntryType;
+import com.vyapaarmitra.api.ledger.LedgerEntryRepository;
 import com.vyapaarmitra.api.share.ShareService;
 import com.vyapaarmitra.api.template.TemplateDtos.CreateTemplateRequest;
 import com.vyapaarmitra.api.template.TemplateDtos.RenderResponse;
 import com.vyapaarmitra.api.template.TemplateDtos.TemplateResponse;
 import com.vyapaarmitra.api.template.TemplateDtos.UpdateTemplateRequest;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -40,6 +43,7 @@ public class TemplateService {
     private final ShareService shareService;
     private final AppProperties appProperties;
     private final AppTime appTime;
+    private final LedgerEntryRepository ledgerEntryRepository;
 
     public TemplateService(MessageTemplateRepository templateRepository,
                            BranchRepository branchRepository,
@@ -47,7 +51,8 @@ public class TemplateService {
                            CustomerService customerService,
                            ShareService shareService,
                            AppProperties appProperties,
-                           AppTime appTime) {
+                           AppTime appTime,
+                           LedgerEntryRepository ledgerEntryRepository) {
         this.templateRepository = templateRepository;
         this.branchRepository = branchRepository;
         this.branchAccessService = branchAccessService;
@@ -55,6 +60,7 @@ public class TemplateService {
         this.shareService = shareService;
         this.appProperties = appProperties;
         this.appTime = appTime;
+        this.ledgerEntryRepository = ledgerEntryRepository;
     }
 
     @Transactional(readOnly = true)
@@ -105,7 +111,8 @@ public class TemplateService {
 
     // Not read-only: appending the khata link get-or-creates the customer's share link.
     @Transactional
-    public RenderResponse render(AuthUser authUser, UUID templateId, UUID customerId) {
+    public RenderResponse render(AuthUser authUser, UUID templateId, UUID customerId,
+                                 LocalDate startDate, LocalDate endDate) {
         MessageTemplate template = loadOwned(authUser, templateId);
         if (!template.isEnabled()) {
             throw ApiException.unprocessable("TEMPLATE_DISABLED", "This template is disabled");
@@ -116,8 +123,15 @@ public class TemplateService {
             throw ApiException.unprocessable("TEMPLATE_BRANCH_MISMATCH",
                 "Template belongs to a different branch");
         }
+        if ((startDate == null) != (endDate == null)) {
+            throw ApiException.unprocessable("INVALID_DATE_RANGE",
+                "Provide both startDate and endDate, or neither");
+        }
+        if (startDate != null && startDate.isAfter(endDate)) {
+            throw ApiException.unprocessable("INVALID_DATE_RANGE", "startDate is after endDate");
+        }
 
-        Map<String, String> variables = buildVariables(customer);
+        Map<String, String> variables = buildVariables(customer, startDate, endDate);
         TemplateRenderer.RenderResult result = TemplateRenderer.render(template.getBody(), variables);
         if (!result.ok()) {
             throw ApiException.unprocessable("TEMPLATE_MISSING_VARIABLES",
@@ -147,7 +161,8 @@ public class TemplateService {
         return (phone == null ? "" : phone.replaceAll("\\D", "")).length() >= 4;
     }
 
-    private Map<String, String> buildVariables(Customer customer) {
+    private Map<String, String> buildVariables(Customer customer, LocalDate startDate,
+                                               LocalDate endDate) {
         Map<String, String> variables = new HashMap<>();
         variables.put("customer_name", customer.getName());
         variables.put("amount_due", formatAmount(customer.getCurrentBalance()));
@@ -157,10 +172,37 @@ public class TemplateService {
             long overdueDays = Math.max(0, ChronoUnit.DAYS.between(dueDate, appTime.today()));
             variables.put("overdue_days", String.valueOf(overdueDays));
         }
+        if (startDate != null) {
+            putWindowVariables(variables, customer, startDate, endDate);
+        }
         branchRepository.findById(customer.getBranchId())
             .map(Branch::getName)
             .ifPresent(name -> variables.put("branch_name", name));
         return variables;
+    }
+
+    /**
+     * Settlement-window tokens for the monthly-reminder flow (render guarantees both dates).
+     * The window is inclusive of both boundary days: half-open [start 00:00, end+1 00:00) in
+     * the business timezone. window_due is the running balance at window close — today's
+     * balance minus everything recorded after — so a past window shows what was owed then,
+     * not now. Deliberately only on this path: ReminderSettingsService's automatic message
+     * has no date context, so a window-bearing template used there 422s with the missing
+     * variables named, which reads as the error it is.
+     */
+    private void putWindowVariables(Map<String, String> variables, Customer customer,
+                                    LocalDate startDate, LocalDate endDate) {
+        Instant from = appTime.startOfDay(startDate);
+        Instant to = appTime.startOfDay(endDate.plusDays(1));
+        variables.put("window_start", DATE_FORMAT.format(startDate));
+        variables.put("window_end", DATE_FORMAT.format(endDate));
+        variables.put("window_credit", formatAmount(ledgerEntryRepository
+            .sumByCustomerAndTypeBetween(customer.getId(), EntryType.CREDIT, from, to)));
+        variables.put("window_payment", formatAmount(ledgerEntryRepository
+            .sumByCustomerAndTypeBetween(customer.getId(), EntryType.PAYMENT, from, to)));
+        variables.put("window_due", formatAmount(
+            customer.getCurrentBalance().subtract(
+                ledgerEntryRepository.signedSumAfter(customer.getId(), to))));
     }
 
     private String formatAmount(BigDecimal amount) {

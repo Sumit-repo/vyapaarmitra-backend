@@ -154,8 +154,9 @@ public class BusinessProvisioningService {
                 + "pichle {{overdue_days}} din se baaki hai, jiski due date {{due_date}} thi. "
                 + "Kripya jald se jald payment clear kar dein.");
         seedTemplate(business, "monthly_settlement", "Monthly settlement",
-            "{{customer_name}} ji, {{branch_name}} se is mahine ka kul hisaab {{amount_due}} "
-                + "baaki hai. Kripya samay par settle kar dein. Dhanyavaad!");
+            "{{customer_name}} ji, {{window_start}} se {{window_end}} tak {{branch_name}} "
+                + "ka hisaab: kharide {{window_credit}}, chukaye {{window_payment}}, "
+                + "total baaki {{amount_due}}. Kripya samay par settle kar dein. Dhanyavaad!");
     }
 
     private void seedTemplate(Business business, String category, String name, String body) {

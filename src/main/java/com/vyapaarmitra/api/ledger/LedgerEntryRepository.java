@@ -34,6 +34,16 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, UUID> 
         """)
     BigDecimal signedSumAfter(@Param("customerId") UUID customerId, @Param("after") Instant after);
 
+    /** Sum of one entry type for a single customer in a half-open window [from, to). */
+    @Query("""
+        select coalesce(sum(e.amount), 0) from LedgerEntry e
+        where e.customerId = :customerId and e.entryType = :type
+          and e.entryAt >= :from and e.entryAt < :to
+        """)
+    BigDecimal sumByCustomerAndTypeBetween(@Param("customerId") UUID customerId,
+                                           @Param("type") EntryType type,
+                                           @Param("from") Instant from, @Param("to") Instant to);
+
     /** Shop-wide statement feed: all entries for the scoped branches since `from`, oldest first. */
     List<LedgerEntry> findByBranchIdInAndEntryAtGreaterThanEqualOrderByEntryAtAsc(
         Collection<UUID> branchIds, Instant from);

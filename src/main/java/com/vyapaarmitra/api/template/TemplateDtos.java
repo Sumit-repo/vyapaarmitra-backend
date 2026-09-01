@@ -3,6 +3,7 @@ package com.vyapaarmitra.api.template;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
 import java.util.UUID;
 
 public final class TemplateDtos {
@@ -31,7 +32,11 @@ public final class TemplateDtos {
                                         Boolean enabled) {
     }
 
-    public record RenderRequest(@NotNull UUID customerId) {
+    /** Optional settlement window: when both dates are present the renderer also fills the
+     *  window_* tokens (period dates, credit/payment sums, balance at window close). */
+    public record RenderRequest(@NotNull UUID customerId,
+                                LocalDate startDate,
+                                LocalDate endDate) {
     }
 
     public record RenderResponse(UUID templateId, String text) {
