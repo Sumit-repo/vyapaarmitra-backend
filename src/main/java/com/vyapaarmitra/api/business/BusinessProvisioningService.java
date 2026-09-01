@@ -146,15 +146,17 @@ public class BusinessProvisioningService {
     }
 
     private void seedStarterTemplates(Business business) {
+        // {{business_name}} — the shop's own name is the signature customers should read;
+        // {{branch_name}} stays available for multi-branch shops that want it explicitly.
         seedTemplate(business, "soft_reminder", "Soft reminder",
-            "Namaste {{customer_name}} ji, {{branch_name}} se. Aapka {{amount_due}} baaki hai. "
+            "Namaste {{customer_name}} ji, {{business_name}} se. Aapka {{amount_due}} baaki hai. "
                 + "Jab suvidha ho, kripya settle kar dein. Dhanyavaad!");
         seedTemplate(business, "firm_reminder", "Firm reminder",
-            "{{customer_name}} ji, {{branch_name}} se baat kar rahe hain. Aapka {{amount_due}} "
+            "{{customer_name}} ji, {{business_name}} se baat kar rahe hain. Aapka {{amount_due}} "
                 + "pichle {{overdue_days}} din se baaki hai, jiski due date {{due_date}} thi. "
                 + "Kripya jald se jald payment clear kar dein.");
         seedTemplate(business, "monthly_settlement", "Monthly settlement",
-            "{{customer_name}} ji, {{window_start}} se {{window_end}} tak {{branch_name}} "
+            "{{customer_name}} ji, {{window_start}} se {{window_end}} tak {{business_name}} "
                 + "ka hisaab: kharide {{window_credit}}, chukaye {{window_payment}}, "
                 + "total baaki {{amount_due}}. Kripya samay par settle kar dein. Dhanyavaad!");
     }

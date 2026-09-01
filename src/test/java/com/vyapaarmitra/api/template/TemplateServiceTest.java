@@ -10,6 +10,8 @@ import static org.mockito.Mockito.when;
 import com.vyapaarmitra.api.auth.AuthUser;
 import com.vyapaarmitra.api.business.BranchAccessService;
 import com.vyapaarmitra.api.business.BranchRepository;
+import com.vyapaarmitra.api.business.Business;
+import com.vyapaarmitra.api.business.BusinessRepository;
 import com.vyapaarmitra.api.common.ApiException;
 import com.vyapaarmitra.api.common.AppTime;
 import com.vyapaarmitra.api.config.AppProperties;
@@ -37,6 +39,7 @@ class TemplateServiceTest {
 
     @Mock private MessageTemplateRepository templateRepository;
     @Mock private BranchRepository branchRepository;
+    @Mock private BusinessRepository businessRepository;
     @Mock private BranchAccessService branchAccessService;
     @Mock private CustomerService customerService;
     @Mock private ShareService shareService;
@@ -130,6 +133,24 @@ class TemplateServiceTest {
 
         assertThat(res.text())
             .contains("01-09-2026", "30-09-2026", "₹4200", "₹1000", "₹2000");
+    }
+
+    @Test
+    void renderFillsBusinessNameWithShopName() {
+        MessageTemplate template = enabledTemplate();
+        template.setBody("{{business_name}}: aapka {{amount_due}} baaki hai");
+        UUID customerId = UUID.randomUUID();
+        Customer customer = customer(null);
+        customer.setId(customerId);
+        Business shop = new Business();
+        shop.setName("Demo3 Store");
+        when(templateRepository.findById(template.getId())).thenReturn(Optional.of(template));
+        when(customerService.loadAccessible(authUser, customerId)).thenReturn(customer);
+        when(businessRepository.findById(customer.getBusinessId())).thenReturn(Optional.of(shop));
+
+        RenderResponse res = service.render(authUser, template.getId(), customerId, null, null);
+
+        assertThat(res.text()).startsWith("Demo3 Store: ");
     }
 
     @Test

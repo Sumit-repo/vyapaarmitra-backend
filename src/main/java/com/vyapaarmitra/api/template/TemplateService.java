@@ -4,6 +4,8 @@ import com.vyapaarmitra.api.auth.AuthUser;
 import com.vyapaarmitra.api.business.Branch;
 import com.vyapaarmitra.api.business.BranchAccessService;
 import com.vyapaarmitra.api.business.BranchRepository;
+import com.vyapaarmitra.api.business.Business;
+import com.vyapaarmitra.api.business.BusinessRepository;
 import com.vyapaarmitra.api.common.ApiException;
 import com.vyapaarmitra.api.common.AppTime;
 import com.vyapaarmitra.api.config.AppProperties;
@@ -38,6 +40,7 @@ public class TemplateService {
 
     private final MessageTemplateRepository templateRepository;
     private final BranchRepository branchRepository;
+    private final BusinessRepository businessRepository;
     private final BranchAccessService branchAccessService;
     private final CustomerService customerService;
     private final ShareService shareService;
@@ -47,6 +50,7 @@ public class TemplateService {
 
     public TemplateService(MessageTemplateRepository templateRepository,
                            BranchRepository branchRepository,
+                           BusinessRepository businessRepository,
                            BranchAccessService branchAccessService,
                            CustomerService customerService,
                            ShareService shareService,
@@ -55,6 +59,7 @@ public class TemplateService {
                            LedgerEntryRepository ledgerEntryRepository) {
         this.templateRepository = templateRepository;
         this.branchRepository = branchRepository;
+        this.businessRepository = businessRepository;
         this.branchAccessService = branchAccessService;
         this.customerService = customerService;
         this.shareService = shareService;
@@ -178,6 +183,11 @@ public class TemplateService {
         branchRepository.findById(customer.getBranchId())
             .map(Branch::getName)
             .ifPresent(name -> variables.put("branch_name", name));
+        // The shop's own name — the default signature for customer-facing reminders
+        // (branch_name says "Main Branch", which reads like a bank, not a shop).
+        businessRepository.findById(customer.getBusinessId())
+            .map(Business::getName)
+            .ifPresent(name -> variables.put("business_name", name));
         return variables;
     }
 
