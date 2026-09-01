@@ -15,8 +15,8 @@ import org.springframework.stereotype.Service;
  * - overduePenalty: 1.5 points per day the oldest open credit is overdue, capped at 45.
  * - openOverduePenalty: 5 points per overdue open credit, capped at 15.
  *
- * Clamped to 0–100. A brand-new customer with no credits scores 60 (WATCH):
- * neutral until behavior proves otherwise.
+ * Clamped to 0–100. A brand-new customer with no credits scores 60 (NEW): the score
+ * is neutral, but "no history yet" is shown as its own bucket — never as medium risk.
  */
 @Service
 public class TrustScoreService {
@@ -27,7 +27,7 @@ public class TrustScoreService {
     public TrustResult compute(BigDecimal totalCredits, BigDecimal totalPayments,
                                long overdueDays, int openOverdueCredits) {
         if (totalCredits.compareTo(BigDecimal.ZERO) <= 0) {
-            return new TrustResult(60, TrustBucket.WATCH);
+            return new TrustResult(60, TrustBucket.NEW);
         }
         double paymentRatio = Math.min(1.0,
             totalPayments.divide(totalCredits, 4, RoundingMode.HALF_UP).doubleValue());

@@ -56,7 +56,7 @@ public class Customer {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "trust_bucket", nullable = false)
-    private TrustBucket trustBucket = TrustBucket.WATCH;
+    private TrustBucket trustBucket = TrustBucket.NEW;
 
     @Column(name = "current_balance", nullable = false)
     private BigDecimal currentBalance = BigDecimal.ZERO;

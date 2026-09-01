@@ -12,10 +12,10 @@ class TrustScoreServiceTest {
     private final TrustScoreService service = new TrustScoreService();
 
     @Test
-    void newCustomerIsNeutralWatch() {
+    void newCustomerIsNeutralNew() {
         TrustResult result = service.compute(BigDecimal.ZERO, BigDecimal.ZERO, 0, 0);
         assertThat(result.score()).isEqualTo(60);
-        assertThat(result.bucket()).isEqualTo(TrustBucket.WATCH);
+        assertThat(result.bucket()).isEqualTo(TrustBucket.NEW);
     }
 
     @Test
