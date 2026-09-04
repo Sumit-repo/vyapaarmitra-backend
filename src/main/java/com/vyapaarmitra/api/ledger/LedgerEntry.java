@@ -61,6 +61,13 @@ public class LedgerEntry {
     @Column(name = "entry_at", nullable = false)
     private Instant entryAt;
 
+    /**
+     * Set when the entry came in through a statement import (dataimport), so plan usage
+     * can exclude one-time backfills from the daily-entry cap.
+     */
+    @Column(name = "import_batch_id")
+    private UUID importBatchId;
+
     @Column(name = "created_by")
     private UUID createdBy;
 

@@ -91,6 +91,37 @@ public class LedgerService {
             CustomerResponse.from(customer));
     }
 
+    /**
+     * Import path (dataimport): records an entry with an explicit shop-local entry date
+     * and the import batch it came from, instead of "now". Same recompute + pay-to-clear
+     * semantics as {@link #createEntry} — imports must land exactly like hand-entered
+     * entries, only dated. The default credit term applies to imported credits too.
+     */
+    @Transactional
+    public void createEntry(Customer customer, EntryType entryType, BigDecimal amount,
+                            String note, LocalDate entryDate, UUID importBatchId, UUID createdBy) {
+        LedgerEntry entry = new LedgerEntry();
+        entry.setBusinessId(customer.getBusinessId());
+        entry.setBranchId(customer.getBranchId());
+        entry.setCustomerId(customer.getId());
+        entry.setEntryType(entryType);
+        entry.setAmount(amount);
+        entry.setNote(note);
+        if (entryType == EntryType.CREDIT) {
+            entry.setDueDate(entryDate.plusDays(DEFAULT_CREDIT_TERM_DAYS));
+        }
+        entry.setEntryAt(appTime.startOfDay(entryDate));
+        entry.setImportBatchId(importBatchId);
+        entry.setCreatedBy(createdBy);
+        ledgerEntryRepository.save(entry);
+
+        recomputeCustomerState(customer);
+        customerRepository.save(customer);
+
+        // Pay-to-clear: an imported payment that settles the balance lifts the defaulter report.
+        defaulterService.clearForCustomerIfSettled(customer);
+    }
+
     @Transactional(readOnly = true)
     public PageResponse<EntryResponse> ledger(AuthUser authUser, UUID customerId, int page, int size) {
         return ledgerForCustomer(customerService.loadAccessible(authUser, customerId), page, size);

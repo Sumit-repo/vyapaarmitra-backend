@@ -44,6 +44,10 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, UUID> 
                                            @Param("type") EntryType type,
                                            @Param("from") Instant from, @Param("to") Instant to);
 
+    /** Entries for one customer inside a half-open window — import duplicate detection. */
+    List<LedgerEntry> findByCustomerIdAndEntryAtGreaterThanEqualAndEntryAtLessThan(
+        UUID customerId, Instant from, Instant to);
+
     /** Shop-wide statement feed: all entries for the scoped branches since `from`, oldest first. */
     List<LedgerEntry> findByBranchIdInAndEntryAtGreaterThanEqualOrderByEntryAtAsc(
         Collection<UUID> branchIds, Instant from);
@@ -64,11 +68,16 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, UUID> 
     long countBetween(@Param("branchIds") Collection<UUID> branchIds,
                       @Param("from") Instant from, @Param("to") Instant to);
 
-    /** Business-scoped entry count in a half-open window — drives daily-entry usage. */
+    /**
+     * Business-scoped entry count in a half-open window — drives daily-entry usage.
+     * Imported rows are excluded: a one-time statement backfill must not burn the cap.
+     */
     @Query("""
         select count(e) from LedgerEntry e
         where e.businessId = :businessId and e.entryAt >= :from and e.entryAt < :to
+          and e.importBatchId is null
         """)
-    long countByBusinessBetween(@Param("businessId") UUID businessId,
-                                @Param("from") Instant from, @Param("to") Instant to);
+    long countByBusinessBetweenExcludingImports(@Param("businessId") UUID businessId,
+                                                @Param("from") Instant from,
+                                                @Param("to") Instant to);
 }

@@ -16,6 +16,10 @@ public interface SupplierLedgerEntryRepository extends JpaRepository<SupplierLed
 
     List<SupplierLedgerEntry> findBySupplierIdOrderByEntryAtAsc(UUID supplierId);
 
+    /** Entries for one supplier inside a half-open window — import duplicate detection. */
+    List<SupplierLedgerEntry> findBySupplierIdAndEntryAtGreaterThanEqualAndEntryAtLessThan(
+        UUID supplierId, Instant from, Instant to);
+
     /** Signed sum (CREDIT +, PAYMENT −) of entries strictly newer than {@code after}. */
     @Query("""
         select coalesce(sum(case when e.entryType = com.vyapaarmitra.api.ledger.EntryType.CREDIT

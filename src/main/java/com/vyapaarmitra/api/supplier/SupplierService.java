@@ -185,6 +185,34 @@ public class SupplierService {
             SupplierResponse.from(supplier));
     }
 
+    /**
+     * Import path (dataimport): records an entry with an explicit shop-local entry date
+     * and the import batch it came from, instead of "now". Same FIFO balance recompute
+     * as {@link #createEntry} — imports must land exactly like hand-entered entries,
+     * only dated. The default credit term applies to imported credits too.
+     */
+    @Transactional
+    public void createEntry(Supplier supplier, EntryType entryType, BigDecimal amount,
+                            String note, LocalDate entryDate, UUID importBatchId, UUID createdBy) {
+        SupplierLedgerEntry entry = new SupplierLedgerEntry();
+        entry.setBusinessId(supplier.getBusinessId());
+        entry.setBranchId(supplier.getBranchId());
+        entry.setSupplierId(supplier.getId());
+        entry.setEntryType(entryType);
+        entry.setAmount(amount);
+        entry.setNote(note);
+        if (entryType == EntryType.CREDIT) {
+            entry.setDueDate(entryDate.plusDays(DEFAULT_CREDIT_TERM_DAYS));
+        }
+        entry.setEntryAt(appTime.startOfDay(entryDate));
+        entry.setImportBatchId(importBatchId);
+        entry.setCreatedBy(createdBy);
+        entryRepository.save(entry);
+
+        recomputeSupplierState(supplier);
+        supplierRepository.save(supplier);
+    }
+
     @Transactional(readOnly = true)
     public Supplier loadAccessible(AuthUser authUser, UUID supplierId) {
         Supplier supplier = supplierRepository.findById(supplierId)

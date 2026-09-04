@@ -112,4 +112,16 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
         """)
     long countByTrustBucket(@Param("branchIds") Collection<UUID> branchIds,
                             @Param("bucket") TrustBucket bucket);
+
+    /**
+     * Party resolution for statement imports (dataimport). Matches are not restricted to
+     * active parties — attaching history to an archived party beats creating a duplicate.
+     * Callers pick deterministically from the (rarely >1) result.
+     */
+    List<Customer> findByBranchIdInAndPhone(Collection<UUID> branchIds, String phone);
+
+    /** OkCredit prints "91"-prefixed numbers; match the bare 10-digit tail of stored phones. */
+    List<Customer> findByBranchIdInAndPhoneEndingWith(Collection<UUID> branchIds, String phone);
+
+    List<Customer> findByBranchIdInAndNameIgnoreCase(Collection<UUID> branchIds, String name);
 }

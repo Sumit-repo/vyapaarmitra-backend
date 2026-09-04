@@ -11,6 +11,7 @@ import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
@@ -79,6 +80,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
             .body(errorBody("MISSING_PARAMETER",
                 "Missing required parameter '" + ex.getParameterName() + "'", null));
+    }
+
+    /** Same idea for a missing multipart part (e.g. no {@code file} on an upload). */
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    ResponseEntity<Map<String, Object>> handleMissingPart(MissingServletRequestPartException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(errorBody("MISSING_PARAMETER",
+                "Missing required part '" + ex.getRequestPartName() + "'", null));
     }
 
     /**

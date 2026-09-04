@@ -131,8 +131,10 @@ public class PlanService {
         Instant monthStart = appTime.startOfDay(today.withDayOfMonth(1));
         Instant monthEnd = appTime.startOfDay(today.withDayOfMonth(1).plusMonths(1));
 
+        // Imported ledger rows (statement import) are excluded: a one-time backfill
+        // must not burn the daily-entry cap or show "300/25" in the usage meter.
         long entriesToday = invoiceRepository.countCreatedBetween(businessId, dayStart, dayEnd)
-            + ledgerEntryRepository.countByBusinessBetween(businessId, dayStart, dayEnd);
+            + ledgerEntryRepository.countByBusinessBetweenExcludingImports(businessId, dayStart, dayEnd);
         long pakkaThisMonth = invoiceRepository.countByTypeCreatedBetween(
             businessId, BillType.PAKKA, monthStart, monthEnd);
         return new Usage(entriesToday, pakkaThisMonth);
