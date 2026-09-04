@@ -15,6 +15,7 @@ import java.util.regex.Pattern;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.pdfbox.text.TextPosition;
+import org.springframework.stereotype.Component;
 
 /**
  * Parses OkCredit "ACCOUNT STATEMENT" PDFs (Chrome/Skia print output) into the
@@ -37,7 +38,11 @@ import org.apache.pdfbox.text.TextPosition;
  * <p>Pure Java: no Spring types, so unit tests run it against the sample PDFs
  * directly. Failure is closed — no marker → {@link #CODE_UNSUPPORTED_STATEMENT},
  * marker but zero usable rows → {@link #CODE_PARSE_FAILED}.
+ *
+ * <p>Still a stateless singleton bean ({@code @Component}) so {@link ImportService}
+ * can inject it — annotation is inert in the plain unit tests.
  */
+@Component
 public class OkCreditStatementParser {
 
     public static final String CODE_UNSUPPORTED_STATEMENT = "UNSUPPORTED_STATEMENT";
