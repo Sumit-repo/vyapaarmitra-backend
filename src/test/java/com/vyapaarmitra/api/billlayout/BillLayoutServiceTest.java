@@ -17,9 +17,9 @@ import com.vyapaarmitra.api.user.Role;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -32,7 +32,14 @@ class BillLayoutServiceTest {
     @Mock private MediaService media;
     @Mock private PdfRenderer pdfRenderer;
 
-    @InjectMocks private BillLayoutService service;
+    private BillLayoutService service;
+
+    @BeforeEach
+    void setUp() {
+        // Real cache collaborator — a mocked one couldn't demonstrate the cached path.
+        service = new BillLayoutService(layouts, businesses, media, pdfRenderer,
+            new BillPreviewCache());
+    }
 
     private final UUID businessId = UUID.randomUUID();
     private final AuthUser owner = new AuthUser(UUID.randomUUID(), businessId, Role.OWNER);
@@ -171,8 +178,45 @@ class BillLayoutServiceTest {
     @Test
     void previewRendersTheSampleBillToPdfBytes() {
         // The service's own render path, with a real renderer (mocks can't produce bytes).
-        BillLayoutService real = new BillLayoutService(layouts, businesses, media, new PdfRenderer());
+        BillLayoutService real = new BillLayoutService(layouts, businesses, media,
+            new PdfRenderer(), new BillPreviewCache());
         assertThat(new String(real.preview(BillPreset.MINIMAL, true, true, "Thanks"),
             0, 5, StandardCharsets.ISO_8859_1)).isEqualTo("%PDF-");
+    }
+
+    @Test
+    void previewCachesRepeatRequestsForTheSameParams() {
+        CountingRenderer renderer = new CountingRenderer();
+        BillLayoutService real = new BillLayoutService(layouts, businesses, media, renderer,
+            new BillPreviewCache());
+
+        byte[] first = real.preview(BillPreset.MINIMAL, true, true, "Thanks");
+        byte[] second = real.preview(BillPreset.MINIMAL, true, true, "Thanks");
+
+        assertThat(second).isSameAs(first);
+        assertThat(renderer.rendered).isEqualTo(1);
+    }
+
+    @Test
+    void previewRendersAgainWhenParamsChange() {
+        CountingRenderer renderer = new CountingRenderer();
+        BillLayoutService real = new BillLayoutService(layouts, businesses, media, renderer,
+            new BillPreviewCache());
+
+        real.preview(BillPreset.MINIMAL, true, true, "Thanks");
+        real.preview(BillPreset.MINIMAL, true, false, "Thanks");
+
+        assertThat(renderer.rendered).isEqualTo(2);
+    }
+
+    /** Counts renders; a mock can't produce the %PDF- bytes the cached-path tests assert on. */
+    private static final class CountingRenderer extends PdfRenderer {
+        private int rendered;
+
+        @Override
+        public byte[] render(String xhtml) {
+            rendered++;
+            return super.render(xhtml);
+        }
     }
 }

@@ -25,15 +25,18 @@ public class BillLayoutService {
     private final BusinessRepository businesses;
     private final MediaService media;
     private final PdfRenderer pdfRenderer;
+    private final BillPreviewCache previewCache;
 
     public BillLayoutService(BillLayoutRepository layouts,
                              BusinessRepository businesses,
                              MediaService media,
-                             PdfRenderer pdfRenderer) {
+                             PdfRenderer pdfRenderer,
+                             BillPreviewCache previewCache) {
         this.layouts = layouts;
         this.businesses = businesses;
         this.media = media;
         this.pdfRenderer = pdfRenderer;
+        this.previewCache = previewCache;
     }
 
     /** What a bill PDF should render with when the shop hasn't saved a design. */
@@ -76,10 +79,24 @@ public class BillLayoutService {
         return effective(layouts.findByBusinessId(businessId).orElse(null));
     }
 
-    /** Renders the synthetic sample bill in the requested design — no DB writes. */
+    /**
+     * Renders the synthetic sample bill in the requested design — no DB writes. Cached:
+     * the sample is deterministic per params, so repeat requests reuse the same bytes
+     * (see {@link BillPreviewCache} for the shared-key invariant). Uncacheable requests
+     * (>500-char note) render straight through.
+     */
     public byte[] preview(BillPreset layout, boolean showUpiQr, boolean showLogo, String footerNote) {
-        return pdfRenderer.render(
+        String key = BillPreviewCache.keyOf(layout, showUpiQr, showLogo, footerNote);
+        if (key != null) {
+            byte[] cached = previewCache.get(key);
+            if (cached != null) {
+                return cached;
+            }
+        }
+        byte[] pdf = pdfRenderer.render(
             BillPdfHtml.build(SampleBill.data(layout, showUpiQr, showLogo, footerNote)));
+        previewCache.put(key, pdf);
+        return pdf;
     }
 
     private Effective effective(BillLayout row) {
