@@ -16,6 +16,7 @@ import com.vyapaarmitra.api.invoice.InvoiceDtos.ItemRequest;
 import com.vyapaarmitra.api.ledger.EntryType;
 import com.vyapaarmitra.api.ledger.LedgerDtos.CreateEntryRequest;
 import com.vyapaarmitra.api.ledger.LedgerService;
+import com.vyapaarmitra.api.media.LogoDataUri;
 import com.vyapaarmitra.api.subscription.PlanService;
 import com.vyapaarmitra.api.subscription.PlanTier;
 import com.vyapaarmitra.api.user.UserDirectory;
@@ -42,6 +43,7 @@ public class InvoiceService {
     private final PdfRenderer pdfRenderer;
     private final BillLayoutService billLayoutService;
     private final PlanService planService;
+    private final LogoDataUri logoDataUri;
 
     public InvoiceService(InvoiceRepository invoiceRepository,
                           BranchAccessService branchAccessService,
@@ -50,7 +52,8 @@ public class InvoiceService {
                           BusinessRepository businessRepository,
                           PdfRenderer pdfRenderer,
                           BillLayoutService billLayoutService,
-                          PlanService planService) {
+                          PlanService planService,
+                          LogoDataUri logoDataUri) {
         this.invoiceRepository = invoiceRepository;
         this.branchAccessService = branchAccessService;
         this.ledgerService = ledgerService;
@@ -59,6 +62,7 @@ public class InvoiceService {
         this.pdfRenderer = pdfRenderer;
         this.billLayoutService = billLayoutService;
         this.planService = planService;
+        this.logoDataUri = logoDataUri;
     }
 
     @Transactional(readOnly = true)
@@ -104,13 +108,16 @@ public class InvoiceService {
     /**
      * Shared render path: shop snapshot (name, logo, UPI details) + the shop's saved bill
      * design (CLASSIC when they never opened the designer) + a plan-appropriate footer.
+     * The logo resolves through the data-URI cache so the render doesn't pay a Cloudinary
+     * fetch per PDF, and the creator name is resolved with {@code null} — nothing in the
+     * PDF reads it, and skipping {@link #respond} saves two UserDirectory queries.
      */
     private byte[] render(Invoice invoice) {
         Business shop = businessRepository.findById(invoice.getBusinessId()).orElse(null);
         BillLayoutService.Effective design = billLayoutService.effectiveLayout(invoice.getBusinessId());
-        BillPdfData data = BillPdfData.of(respond(invoice),
+        BillPdfData data = BillPdfData.of(InvoiceResponse.from(invoice, null),
             shop == null ? "My Shop" : shop.getName(),
-            shop == null ? null : shop.getLogoUrl(),
+            shop == null ? null : logoDataUri.resolve(shop.getLogoUrl()),
             shop == null ? null : shop.getUpiVpa(),
             shop == null ? null : shop.getUpiPayeeName(),
             design.layout(), design.options(),
