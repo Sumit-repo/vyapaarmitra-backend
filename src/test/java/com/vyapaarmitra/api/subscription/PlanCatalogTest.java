@@ -24,6 +24,7 @@ class PlanCatalogTest {
         assertThat(free.automation()).isFalse();
         assertThat(free.staff()).isFalse();
         assertThat(free.trustAnalytics()).isFalse();
+        assertThat(free.billLayouts()).isFalse();
     }
 
     @Test
@@ -37,6 +38,7 @@ class PlanCatalogTest {
         assertThat(lite.automation()).isFalse();
         assertThat(lite.staff()).isFalse();
         assertThat(lite.trustAnalytics()).isFalse();
+        assertThat(lite.billLayouts()).isFalse();
     }
 
     @Test

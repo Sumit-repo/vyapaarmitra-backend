@@ -106,6 +106,13 @@
 			<artifactId>openhtmltopdf-pdfbox</artifactId>
 			<version>1.0.10</version>
 		</dependency>
+		<!-- UPI "Scan & Pay" QR on the bill PDF (bill-design presets). core only — no
+		     javase/engine baggage; we rasterise the BitMatrix ourselves with ImageIO. -->
+		<dependency>
+			<groupId>com.google.zxing</groupId>
+			<artifactId>core</artifactId>
+			<version>3.5.3</version>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator-test</artifactId>

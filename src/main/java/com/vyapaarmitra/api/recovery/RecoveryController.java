@@ -49,7 +49,7 @@ public class RecoveryController {
         return ResponseEntity.ok()
             .contentType(MediaType.APPLICATION_PDF)
             .header(HttpHeaders.CONTENT_DISPOSITION,
-                ContentDisposition.inline().filename("overdue.pdf").toString())
+                ContentDisposition.inline().filename("overdue.pdf").build().toString())
             .body(pdf);
     }
 }

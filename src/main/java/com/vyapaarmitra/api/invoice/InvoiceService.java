@@ -1,6 +1,8 @@
 package com.vyapaarmitra.api.invoice;
 
 import com.vyapaarmitra.api.auth.AuthUser;
+import com.vyapaarmitra.api.billlayout.BillLayoutService;
+import com.vyapaarmitra.api.billlayout.BillPdfData;
 import com.vyapaarmitra.api.business.BranchAccessService;
 import com.vyapaarmitra.api.business.Business;
 import com.vyapaarmitra.api.business.BusinessRepository;
@@ -14,6 +16,8 @@ import com.vyapaarmitra.api.invoice.InvoiceDtos.ItemRequest;
 import com.vyapaarmitra.api.ledger.EntryType;
 import com.vyapaarmitra.api.ledger.LedgerDtos.CreateEntryRequest;
 import com.vyapaarmitra.api.ledger.LedgerService;
+import com.vyapaarmitra.api.subscription.PlanService;
+import com.vyapaarmitra.api.subscription.PlanTier;
 import com.vyapaarmitra.api.user.UserDirectory;
 import java.math.BigDecimal;
 import java.util.List;
@@ -36,19 +40,25 @@ public class InvoiceService {
     private final UserDirectory userDirectory;
     private final BusinessRepository businessRepository;
     private final PdfRenderer pdfRenderer;
+    private final BillLayoutService billLayoutService;
+    private final PlanService planService;
 
     public InvoiceService(InvoiceRepository invoiceRepository,
                           BranchAccessService branchAccessService,
                           LedgerService ledgerService,
                           UserDirectory userDirectory,
                           BusinessRepository businessRepository,
-                          PdfRenderer pdfRenderer) {
+                          PdfRenderer pdfRenderer,
+                          BillLayoutService billLayoutService,
+                          PlanService planService) {
         this.invoiceRepository = invoiceRepository;
         this.branchAccessService = branchAccessService;
         this.ledgerService = ledgerService;
         this.userDirectory = userDirectory;
         this.businessRepository = businessRepository;
         this.pdfRenderer = pdfRenderer;
+        this.billLayoutService = billLayoutService;
+        this.planService = planService;
     }
 
     @Transactional(readOnly = true)
@@ -73,16 +83,13 @@ public class InvoiceService {
     }
 
     /**
-     * Render a bill to PDF bytes (served to both the app and the web dashboard). Branded for
-     * now; TODO plan-gate the footer off for paid plans once a plan lookup is wired here.
+     * Render a bill to PDF bytes (served to both the app and the web dashboard) in the
+     * shop's saved bill design. The "powered by" footer is the FREE-plan trade-off —
+     * LITE/PRO (and any active trial, which is PRO while it lasts) print a clean footer.
      */
     @Transactional(readOnly = true)
     public byte[] pdf(AuthUser authUser, UUID id) {
-        Invoice invoice = loadAccessible(authUser, id);
-        String shopName = businessRepository.findById(invoice.getBusinessId())
-            .map(Business::getName).orElse("My Shop");
-        String html = BillPdfHtml.build(respond(invoice), shopName, true);
-        return pdfRenderer.render(html);
+        return render(loadAccessible(authUser, id));
     }
 
     /** Render a bill PDF scoped to a business (public share viewer — no AuthUser). */
@@ -91,10 +98,24 @@ public class InvoiceService {
         Invoice invoice = invoiceRepository.findById(invoiceId)
             .filter(i -> i.getBusinessId().equals(businessId))
             .orElseThrow(() -> ApiException.notFound("Bill not found"));
-        String shopName = businessRepository.findById(businessId)
-            .map(Business::getName).orElse("My Shop");
-        String html = BillPdfHtml.build(respond(invoice), shopName, true);
-        return pdfRenderer.render(html);
+        return render(invoice);
+    }
+
+    /**
+     * Shared render path: shop snapshot (name, logo, UPI details) + the shop's saved bill
+     * design (CLASSIC when they never opened the designer) + a plan-appropriate footer.
+     */
+    private byte[] render(Invoice invoice) {
+        Business shop = businessRepository.findById(invoice.getBusinessId()).orElse(null);
+        BillLayoutService.Effective design = billLayoutService.effectiveLayout(invoice.getBusinessId());
+        BillPdfData data = BillPdfData.of(respond(invoice),
+            shop == null ? "My Shop" : shop.getName(),
+            shop == null ? null : shop.getLogoUrl(),
+            shop == null ? null : shop.getUpiVpa(),
+            shop == null ? null : shop.getUpiPayeeName(),
+            design.layout(), design.options(),
+            planService.effectivePlan(invoice.getBusinessId()) == PlanTier.FREE);
+        return pdfRenderer.render(BillPdfHtml.build(data));
     }
 
     /** Wraps an invoice with its resolved creator name (business-local). */

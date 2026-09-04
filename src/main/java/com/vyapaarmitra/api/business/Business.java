@@ -40,6 +40,15 @@ public class Business {
     @Column(name = "upi_payee_name")
     private String upiPayeeName;
 
+    // Shop logo shown on the bill PDF (bill-design presets). Uploaded through
+    // /attachments, then referenced here via PUT /bill-layout — we keep the public id so
+    // a replaced logo can be deleted from Cloudinary.
+    @Column(name = "logo_url")
+    private String logoUrl;
+
+    @Column(name = "logo_public_id")
+    private String logoPublicId;
+
     // Soft-delete marker: set alongside the owner's when they schedule account deletion,
     // cleared on reactivation. Owned businesses are purged with the owner. See
     // docs/account-deletion.md.

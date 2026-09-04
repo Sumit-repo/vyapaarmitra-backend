@@ -59,7 +59,7 @@ public class InvoiceController {
         return ResponseEntity.ok()
             .contentType(MediaType.APPLICATION_PDF)
             .header(HttpHeaders.CONTENT_DISPOSITION,
-                ContentDisposition.inline().filename("bill-" + id + ".pdf").toString())
+                ContentDisposition.inline().filename("bill-" + id + ".pdf").build().toString())
             .body(pdf);
     }
 

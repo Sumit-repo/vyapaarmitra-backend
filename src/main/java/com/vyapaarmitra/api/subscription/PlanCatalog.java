@@ -17,12 +17,12 @@ public final class PlanCatalog {
 
     /** Paid, gated capabilities. Maps 1:1 to the web's UpgradeReason feature set. */
     public enum Feature {
-        REPORTS, RECOVERY, AUTOMATION, STAFF, TRUST_ANALYTICS
+        REPORTS, RECOVERY, AUTOMATION, STAFF, TRUST_ANALYTICS, BILL_LAYOUTS
     }
 
     public record Entitlements(int dailyEntryCap, int pakkaMonthlyCap, int maxBranches,
                                boolean reports, boolean recovery, boolean automation,
-                               boolean staff, boolean trustAnalytics) {
+                               boolean staff, boolean trustAnalytics, boolean billLayouts) {
 
         public boolean has(Feature feature) {
             return switch (feature) {
@@ -31,6 +31,7 @@ public final class PlanCatalog {
                 case AUTOMATION -> automation;
                 case STAFF -> staff;
                 case TRUST_ANALYTICS -> trustAnalytics;
+                case BILL_LAYOUTS -> billLayouts;
             };
         }
     }
@@ -40,9 +41,9 @@ public final class PlanCatalog {
     }
 
     private static final Map<PlanTier, Entitlements> ENTITLEMENTS = Map.of(
-        PlanTier.FREE, new Entitlements(25, 3, 1, false, false, false, false, false),
-        PlanTier.LITE, new Entitlements(100, UNLIMITED, 2, true, false, false, false, false),
-        PlanTier.PRO, new Entitlements(UNLIMITED, UNLIMITED, UNLIMITED, true, true, true, true, true)
+        PlanTier.FREE, new Entitlements(25, 3, 1, false, false, false, false, false, false),
+        PlanTier.LITE, new Entitlements(100, UNLIMITED, 2, true, false, false, false, false, false),
+        PlanTier.PRO, new Entitlements(UNLIMITED, UNLIMITED, UNLIMITED, true, true, true, true, true, true)
     );
 
     private static final Map<PlanTier, Price> PRICING = Map.of(

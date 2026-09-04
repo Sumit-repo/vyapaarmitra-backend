@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.vyapaarmitra.api.billlayout.BillPdfData;
+import com.vyapaarmitra.api.billlayout.BillPreset;
 import com.vyapaarmitra.api.invoice.InvoiceDtos.InvoiceResponse;
 import com.vyapaarmitra.api.pdf.PdfRenderer;
 import java.math.BigDecimal;
@@ -35,9 +37,18 @@ class BillPdfHtmlTest {
             hsn, taxRate, new BigDecimal("400"));
     }
 
+    /**
+     * CLASSIC view-model — the shape every bill rendered before bill-design (no logo, no
+     * UPI QR, no footer note). The exact markup is pinned in the billlayout golden test.
+     */
+    private static String classic(InvoiceResponse bill, String shopName, boolean branding) {
+        return BillPdfHtml.build(new BillPdfData(bill, shopName, null, null, null, branding,
+            BillPreset.CLASSIC, false, false, null));
+    }
+
     @Test
     void kacchaIsInvoiceWithoutGstin() {
-        String html = BillPdfHtml.build(
+        String html = classic(
             bill(BillType.KACCHA, false, List.of(item("Sugar", null, null)),
                 BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, "Ramesh"),
             "Bhagat Stores", true);
@@ -54,7 +65,7 @@ class BillPdfHtmlTest {
 
     @Test
     void pakkaIsTaxInvoiceWithGstinHsnAndCgstSgst() {
-        String html = BillPdfHtml.build(
+        String html = classic(
             bill(BillType.PAKKA, false, List.of(item("Cement", "2523", new BigDecimal("18"))),
                 new BigDecimal("36"), new BigDecimal("36"), BigDecimal.ZERO, "Ramesh"),
             "Bhagat Stores", true);
@@ -69,7 +80,7 @@ class BillPdfHtmlTest {
 
     @Test
     void pakkaInterStateChargesIgst() {
-        String html = BillPdfHtml.build(
+        String html = classic(
             bill(BillType.PAKKA, true, List.of(item("Cement", "2523", new BigDecimal("18"))),
                 BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("72"), "Ramesh"),
             "Bhagat Stores", true);
@@ -81,14 +92,14 @@ class BillPdfHtmlTest {
     void brandingTogglesTheFooterWithAClickableLink() {
         InvoiceResponse b = bill(BillType.KACCHA, false, List.of(item("Sugar", null, null)),
             BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, "R");
-        String branded = BillPdfHtml.build(b, "S", true);
+        String branded = classic(b, "S", true);
         assertTrue(branded.contains("<a href=\"https://vyapaarmitra.vercel.app/\">VyapaarMitra</a>"));
-        assertFalse(BillPdfHtml.build(b, "S", false).contains("VyapaarMitra"));
+        assertFalse(classic(b, "S", false).contains("VyapaarMitra"));
     }
 
     @Test
     void escapesUserText() {
-        String html = BillPdfHtml.build(
+        String html = classic(
             bill(BillType.KACCHA, false, List.of(item("Sugar", null, null)),
                 BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, "<b>x</b> & co"),
             "S", true);
@@ -99,7 +110,7 @@ class BillPdfHtmlTest {
     @Test
     void producedHtmlRendersToAValidPdf() {
         // Hindi party/item + ₹ exercise the bundled Devanagari/Rupee font path.
-        String html = BillPdfHtml.build(
+        String html = classic(
             bill(BillType.PAKKA, false, List.of(item("सीमेंट", "2523", new BigDecimal("18"))),
                 new BigDecimal("36"), new BigDecimal("36"), BigDecimal.ZERO, "रमेश शर्मा"),
             "भगत स्टोर्स", true);

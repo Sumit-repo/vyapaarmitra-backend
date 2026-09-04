@@ -58,7 +58,7 @@ public class RecordsController {
         return ResponseEntity.ok()
             .contentType(MediaType.APPLICATION_PDF)
             .header(HttpHeaders.CONTENT_DISPOSITION,
-                ContentDisposition.inline().filename("statement.pdf").toString())
+                ContentDisposition.inline().filename("statement.pdf").build().toString())
             .body(pdf);
     }
 }
