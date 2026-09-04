@@ -7,6 +7,7 @@ import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.balanceBlock;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.brandBlock;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.buyerBlock;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.date;
+import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.designOverrides;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.esc;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.footerNoteBlock;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.heading;
@@ -33,24 +34,24 @@ public final class ClassicBillLayout {
     public static String build(BillPdfData d) {
         InvoiceResponse bill = d.bill();
         boolean pakka = bill.billType() == BillType.PAKKA;
-        String heading = heading(bill.billType());
+        String heading = heading(bill.billType(), d.options());
 
         String rows = itemsRows(bill);
         String totals = totalsRows(bill);
-        String balance = balanceBlock(bill);
+        String balance = balanceBlock(bill, d.options());
         String sellerGstin = sellerGstinBlock(bill);
         String supply = supplyBlock(bill);
-        String buyer = buyerBlock(bill);
+        String buyer = buyerBlock(bill, d.options());
         String notes = notesBlock(bill);
-        String brand = brandBlock(d.branding());
+        String brand = brandBlock(d.branding(), d.options());
         String logo = logoImg(d);
         String qr = qrBlock(d);
-        String footnote = footerNoteBlock(d.footerNote());
-        String date = date(bill);
+        String footnote = footerNoteBlock(d.options().footerNote());
+        String date = date(bill, d.options());
 
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
             + "<html><head><meta charset=\"utf-8\" />"
-            + "<style>" + css() + designCss(logo, qr, footnote) + "</style></head><body>"
+            + "<style>" + css() + designCss(logo, qr, footnote) + designOverrides(d.options()) + "</style></head><body>"
             + "<table class=\"head\"><tr>"
             + "<td class=\"head-left\">" + logo + "<div class=\"shop-name\">" + esc(d.shopName()) + "</div>" + sellerGstin + "</td>"
             + "<td class=\"head-right\"><div class=\"h\">" + heading + "</div>"

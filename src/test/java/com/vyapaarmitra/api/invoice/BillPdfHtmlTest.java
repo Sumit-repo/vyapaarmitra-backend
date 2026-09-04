@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.vyapaarmitra.api.billlayout.BillLayoutOptions;
 import com.vyapaarmitra.api.billlayout.BillPdfData;
 import com.vyapaarmitra.api.billlayout.BillPreset;
 import com.vyapaarmitra.api.invoice.InvoiceDtos.InvoiceResponse;
@@ -43,7 +44,7 @@ class BillPdfHtmlTest {
      */
     private static String classic(InvoiceResponse bill, String shopName, boolean branding) {
         return BillPdfHtml.build(new BillPdfData(bill, shopName, null, null, null, branding,
-            BillPreset.CLASSIC, false, false, null));
+            BillPreset.CLASSIC, BillLayoutOptions.defaults()));
     }
 
     @Test

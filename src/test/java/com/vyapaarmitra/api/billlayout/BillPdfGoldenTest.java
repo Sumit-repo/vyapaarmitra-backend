@@ -24,7 +24,7 @@ class BillPdfGoldenTest {
     void classicOutputIsByteIdenticalToPreRefactor(BillType type) throws IOException {
         String expected = golden("golden-classic-" + type.name().toLowerCase() + ".html");
         BillPdfData classic = new BillPdfData(BillSamples.bill(type), "Sharma Kirana Store",
-            null, null, null, true, BillPreset.CLASSIC, false, false, null);
+            null, null, null, true, BillPreset.CLASSIC, BillLayoutOptions.defaults());
         assertEquals(expected, BillPdfHtml.build(classic),
             () -> "CLASSIC markup drifted for " + type + " — existing bills must not change.");
     }

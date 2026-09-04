@@ -20,9 +20,9 @@ import org.springframework.stereotype.Component;
  * <p>Contract: callers render OUTSIDE the cache — {@code get} → miss → render →
  * {@code put}. Never render inside {@code computeIfAbsent}; two concurrent renders of
  * the same key are idempotent and the later put simply wins. {@code keyOf} returns
- * {@code null} for an uncacheable request (>500-char footer note — the preview has no
- * {@code @Size} on the note, so this both bounds keys and skips aliasing), and callers
- * render uncached then.
+ * {@code null} for an uncacheable request (>500-char footer note — belt-and-braces on
+ * top of the {@code @Size} bean validation, for direct callers), and callers render
+ * uncached then.
  */
 @Component
 public class BillPreviewCache {
@@ -47,13 +47,30 @@ public class BillPreviewCache {
         this.maxEntries = Math.max(1, maxEntries);
     }
 
-    /** Cache key for a preview request, or {@code null} when the request is uncacheable. */
-    static String keyOf(BillPreset layout, boolean showUpiQr, boolean showLogo, String footerNote) {
-        String note = footerNote == null ? "" : footerNote.trim();
-        if (note.length() > MAX_NOTE_CHARS) {
+    /**
+     * Cache key for a preview request, or {@code null} when the request is uncacheable.
+     * Every option field appears in the key — two designs differing only in, say, accent
+     * must never share bytes. {@code options} is normalised first so equivalent requests
+     * (absent enum vs its default, untrimmed note) hit the same key.
+     */
+    static String keyOf(BillPreset layout, BillLayoutOptions options) {
+        BillLayoutOptions o = options.normalized();
+        if (o.footerNote() != null && o.footerNote().length() > MAX_NOTE_CHARS) {
             return null;
         }
-        return layout.name() + "|" + showUpiQr + "|" + showLogo + "|" + note;
+        return String.join("|",
+            layout.name(),
+            String.valueOf(o.showUpiQr()),
+            String.valueOf(o.showLogo()),
+            String.valueOf(o.footerNote()),
+            o.headingAlign().name(),
+            o.footerAlign().name(),
+            o.accent().name(),
+            String.valueOf(o.hidePhone()),
+            String.valueOf(o.hideBalance()),
+            String.valueOf(o.hideBrand()),
+            String.valueOf(o.headingLabel()),
+            o.dateFormat().name());
     }
 
     /** Cached bytes for the key, or {@code null} on miss/expiry (expired entries removed). */

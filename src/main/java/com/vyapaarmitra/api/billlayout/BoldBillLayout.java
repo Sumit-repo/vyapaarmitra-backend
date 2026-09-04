@@ -4,6 +4,7 @@ import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.balanceBlock;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.brandBlock;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.buyerBlock;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.date;
+import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.designOverrides;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.esc;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.footerNoteBlock;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.heading;
@@ -36,20 +37,20 @@ public final class BoldBillLayout {
 
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
             + "<html><head><meta charset=\"utf-8\" />"
-            + "<style>" + css() + "</style></head><body>"
+            + "<style>" + css() + designOverrides(d.options()) + "</style></head><body>"
             + "<table class=\"band\"><tr>"
             + "<td class=\"band-left\">" + logoImg(d)
             + "<div class=\"shop-name\">" + esc(d.shopName()) + "</div>"
             + sellerGstinBlock(bill) + "</td>"
-            + "<td class=\"band-right\"><div class=\"h\">" + heading(bill.billType()) + "</div>"
-            + "<div class=\"muted\">" + esc(bill.number()) + " | " + esc(date(bill)) + "</div></td>"
+            + "<td class=\"band-right\"><div class=\"h\">" + heading(bill.billType(), d.options()) + "</div>"
+            + "<div class=\"muted\">" + esc(bill.number()) + " | " + esc(date(bill, d.options())) + "</div></td>"
             + "</tr></table>"
-            + "<table class=\"meta\"><tr><td class=\"party\">" + buyerBlock(bill) + "</td>"
+            + "<table class=\"meta\"><tr><td class=\"party\">" + buyerBlock(bill, d.options()) + "</td>"
             + "<td class=\"supply\">" + supplyBlock(bill) + "</td></tr></table>"
             + "<table class=\"items\">" + itemsHead(pakka) + "<tbody>" + itemsRows(bill) + "</tbody></table>"
             + "<table class=\"totals\">" + totalsRows(bill) + "</table>"
-            + balanceBlock(bill) + qrBlock(d) + notesBlock(bill)
-            + footerNoteBlock(d.footerNote()) + brandBlock(d.branding())
+            + balanceBlock(bill, d.options()) + qrBlock(d) + notesBlock(bill)
+            + footerNoteBlock(d.options().footerNote()) + brandBlock(d.branding(), d.options())
             + "</body></html>";
     }
 

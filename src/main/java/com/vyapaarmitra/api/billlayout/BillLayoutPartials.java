@@ -34,8 +34,11 @@ final class BillLayoutPartials {
     private BillLayoutPartials() {
     }
 
-    /** A no-GST bill must never read "Tax Invoice". */
-    static String heading(BillType type) {
+    /** A no-GST bill must never read "Tax Invoice" — the custom label is PAKKA-only. */
+    static String heading(BillType type, BillLayoutOptions o) {
+        if (type == BillType.PAKKA && notBlank(o.headingLabel())) {
+            return esc(o.headingLabel());
+        }
         return type == BillType.PAKKA ? "TAX INVOICE" : "INVOICE";
     }
 
@@ -92,7 +95,10 @@ final class BillLayoutPartials {
         return totals.toString();
     }
 
-    static String balanceBlock(InvoiceResponse bill) {
+    static String balanceBlock(InvoiceResponse bill, BillLayoutOptions o) {
+        if (o.hideBalance()) {
+            return "";
+        }
         return pos(bill.balanceDue())
             ? "<div class=\"balance due\">Balance on khata: " + rupees(bill.balanceDue()) + "</div>"
             : "<div class=\"balance paid\">Paid in full</div>";
@@ -110,12 +116,12 @@ final class BillLayoutPartials {
     }
 
     /** "Bill to" block — omitted for walk-in bills with no name. */
-    static String buyerBlock(InvoiceResponse bill) {
+    static String buyerBlock(InvoiceResponse bill, BillLayoutOptions o) {
         boolean pakka = bill.billType() == BillType.PAKKA;
         return notBlank(bill.partyName())
             ? "<div class=\"muted\">Bill to</div>"
               + "<div class=\"party-name\">" + esc(bill.partyName()) + "</div>"
-              + (notBlank(bill.partyPhone()) ? "<div>" + esc(bill.partyPhone()) + "</div>" : "")
+              + (!o.hidePhone() && notBlank(bill.partyPhone()) ? "<div>" + esc(bill.partyPhone()) + "</div>" : "")
               + (pakka && notBlank(bill.partyGstin()) ? "<div>GSTIN: " + esc(bill.partyGstin()) + "</div>" : "")
             : "";
     }
@@ -131,13 +137,13 @@ final class BillLayoutPartials {
     }
 
     /** FREE-plan "powered by" footer — the caller decides from the effective plan. */
-    static String brandBlock(boolean branding) {
-        return branding ? "<div class=\"brand\">" + BRAND_TAGLINE + "</div>" : "";
+    static String brandBlock(boolean branding, BillLayoutOptions o) {
+        return branding && !o.hideBrand() ? "<div class=\"brand\">" + BRAND_TAGLINE + "</div>" : "";
     }
 
     /** Shop logo, only when the design turns it on and one was uploaded. */
     static String logoImg(BillPdfData data) {
-        return data.showLogo() && notBlank(data.logoUrl())
+        return data.options().showLogo() && notBlank(data.logoUrl())
             ? "<img class=\"logo\" src=\"" + esc(data.logoUrl()) + "\" alt=\"Shop logo\" />" : "";
     }
 
@@ -146,7 +152,7 @@ final class BillLayoutPartials {
      * when the design asks for it, the shop has a VPA, and money is still owed.
      */
     static String qrBlock(BillPdfData data) {
-        if (!data.showUpiQr() || !notBlank(data.upiVpa()) || !pos(data.bill().balanceDue())) {
+        if (!data.options().showUpiQr() || !notBlank(data.upiVpa()) || !pos(data.bill().balanceDue())) {
             return "";
         }
         String uri = BillQr.upiDataUri(data.upiVpa(), data.upiPayeeName(), data.bill().balanceDue());
@@ -156,8 +162,51 @@ final class BillLayoutPartials {
             + "</tr></table>";
     }
 
-    static String date(InvoiceResponse bill) {
-        return bill.createdAt() == null ? "" : DATE.format(bill.createdAt().atZone(IST));
+    static String date(InvoiceResponse bill, BillLayoutOptions o) {
+        if (bill.createdAt() == null) {
+            return "";
+        }
+        return DateTimeFormatter.ofPattern(o.dateFormat().pattern(), Locale.ENGLISH)
+            .format(bill.createdAt().atZone(IST));
+    }
+
+    /**
+     * CSS overrides for the v2 design options, appended after a preset's own stylesheet
+     * (later rules win). Emits nothing at the defaults, which is what keeps the CLASSIC
+     * golden byte-identical — options only ever ADD markup, never reshape it.
+     */
+    static String designOverrides(BillLayoutOptions o) {
+        StringBuilder css = new StringBuilder();
+        if (o.headingAlign() != BillLayoutOptions.Align.LEFT) {
+            String align = o.headingAlign().name().toLowerCase(Locale.ENGLISH);
+            css.append(".head-left, .band-left { text-align: ").append(align).append("; }");
+            // A fixed-width <img> ignores text-align — center/right it by margins.
+            css.append(o.headingAlign() == BillLayoutOptions.Align.CENTER
+                ? ".head .logo, .band .logo { margin-left: auto; margin-right: auto; }"
+                : ".head .logo, .band .logo { margin-left: auto; }");
+        }
+        if (o.footerAlign() != BillLayoutOptions.Align.RIGHT) {
+            css.append(".footer-note { text-align: ")
+                .append(o.footerAlign().name().toLowerCase(Locale.ENGLISH)).append("; }");
+        }
+        String accent = accentHex(o.accent());
+        if (accent != null) {
+            css.append(".head { border-bottom-color: ").append(accent).append("; }")
+                .append(".band { background-color: ").append(accent).append("; }")
+                .append(".totals .grand td { border-top-color: ").append(accent).append("; }")
+                .append(".totals { border-color: ").append(accent).append("; }");
+        }
+        return css.toString();
+    }
+
+    /** NEUTRAL returns null (no override — the preset stylesheet stands). */
+    private static String accentHex(BillLayoutOptions.Accent accent) {
+        return switch (accent) {
+            case BLUE -> "#015FAD";
+            case GREEN -> "#1E7B3C";
+            case MAROON -> "#7A1F2B";
+            case NEUTRAL -> null;
+        };
     }
 
     private static String td(String cls, String html) {

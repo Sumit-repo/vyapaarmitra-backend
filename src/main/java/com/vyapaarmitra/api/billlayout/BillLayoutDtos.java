@@ -23,10 +23,21 @@ public final class BillLayoutDtos {
         }
     }
 
-    public record OptionsView(boolean showUpiQr, boolean showLogo, String footerNote) {
+    public record OptionsView(boolean showUpiQr, boolean showLogo, String footerNote,
+                              String headingAlign, String footerAlign, String accent,
+                              boolean hidePhone, boolean hideBalance, boolean hideBrand,
+                              String headingLabel, String dateFormat) {
 
         public static OptionsView from(BillLayoutOptions options) {
-            return new OptionsView(options.showUpiQr(), options.showLogo(), options.footerNote());
+            return new OptionsView(options.showUpiQr(), options.showLogo(), options.footerNote(),
+                name(options.headingAlign()), name(options.footerAlign()), name(options.accent()),
+                options.hidePhone(), options.hideBalance(), options.hideBrand(),
+                options.headingLabel(), name(options.dateFormat()));
+        }
+
+        /** Enums render as their wire names (or null when unset — the pre-v2 default). */
+        private static String name(Enum<?> value) {
+            return value == null ? null : value.name();
         }
     }
 
@@ -54,13 +65,29 @@ public final class BillLayoutDtos {
                                           @Size(max = 255) String logoPublicId) {
     }
 
+    /** Body of {@code POST /bill-layout/preview} — the designer's live render request. */
+    public record PreviewRequest(@NotNull BillPreset layout, @Valid BillLayoutOptions options) {
+    }
+
     /**
      * Whether a request needs the BILL_LAYOUTS entitlement: any non-classic preset, or
-     * any toggle on. {@code footerNote} counts when it carries text.
+     * any option off its pre-v2 default (absent enum = default, absent hide-flag = off).
+     * {@code footerNote} counts when it carries text.
      */
-    public static boolean requiresPro(BillPreset layout, boolean showUpiQr, boolean showLogo,
-                                      String footerNote) {
-        boolean noted = footerNote != null && !footerNote.isBlank();
-        return layout != BillPreset.CLASSIC || showUpiQr || showLogo || noted;
+    public static boolean requiresPro(BillPreset layout, BillLayoutOptions o) {
+        boolean noted = o.footerNote() != null && !o.footerNote().isBlank();
+        boolean labelled = o.headingLabel() != null && !o.headingLabel().isBlank();
+        return layout != BillPreset.CLASSIC || o.showUpiQr() || o.showLogo() || noted
+            || isSet(o.headingAlign(), BillLayoutOptions.Align.LEFT)
+            || isSet(o.footerAlign(), BillLayoutOptions.Align.RIGHT)
+            || isSet(o.accent(), BillLayoutOptions.Accent.NEUTRAL)
+            || isSet(o.dateFormat(), BillLayoutOptions.DateFormat.D_MMM_YYYY)
+            || o.hidePhone() || o.hideBalance() || o.hideBrand()
+            || labelled;
+    }
+
+    /** True when the enum is present and not the default (absent = default = free). */
+    private static boolean isSet(Enum<?> value, Enum<?> fallback) {
+        return value != null && value != fallback;
     }
 }

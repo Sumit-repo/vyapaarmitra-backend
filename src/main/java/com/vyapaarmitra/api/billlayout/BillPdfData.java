@@ -6,6 +6,8 @@ import com.vyapaarmitra.api.invoice.InvoiceDtos.InvoiceResponse;
  * Everything the bill PDF builders need, flattened out of the invoice + the shop snapshot
  * so the presets stay pure string-builders with no data access. {@code branding} is the
  * FREE-plan "powered by" footer, decided by the caller from the effective plan.
+ * {@code options} is always normalized (enums non-null) — the compact constructor
+ * guarantees it, so the builders never null-check the design.
  */
 public record BillPdfData(
     InvoiceResponse bill,
@@ -15,9 +17,11 @@ public record BillPdfData(
     String upiPayeeName,
     boolean branding,
     BillPreset layout,
-    boolean showUpiQr,
-    boolean showLogo,
-    String footerNote) {
+    BillLayoutOptions options) {
+
+    public BillPdfData {
+        options = options == null ? BillLayoutOptions.defaults() : options.normalized();
+    }
 
     /**
      * Snapshot for rendering a stored bill. {@code options} comes from the shop's saved
@@ -27,6 +31,6 @@ public record BillPdfData(
                                  String upiVpa, String upiPayeeName, BillPreset layout,
                                  BillLayoutOptions options, boolean branding) {
         return new BillPdfData(bill, shopName, logoUrl, upiVpa, upiPayeeName, branding,
-            layout, options.showUpiQr(), options.showLogo(), options.footerNote());
+            layout, options);
     }
 }

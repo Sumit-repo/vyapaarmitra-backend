@@ -32,12 +32,12 @@ public final class SampleBill {
     }
 
     /** The preview's view-model: the sample bill rendered in the requested design. */
-    public static BillPdfData data(BillPreset layout, boolean showUpiQr, boolean showLogo,
-                                   String footerNote) {
+    public static BillPdfData data(BillPreset layout, BillLayoutOptions options) {
+        BillLayoutOptions o = options.normalized();
         return new BillPdfData(bill(), SHOP,
-            showLogo ? placeholderLogo() : null,
-            showUpiQr ? UPI_VPA : null,
-            SHOP, true, layout, showUpiQr, showLogo, footerNote);
+            o.showLogo() ? placeholderLogo() : null,
+            o.showUpiQr() ? UPI_VPA : null,
+            SHOP, true, layout, o);
     }
 
     /** Two items, GST and a part payment — every block of every preset is exercised. */

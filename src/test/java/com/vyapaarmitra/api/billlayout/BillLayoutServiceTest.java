@@ -79,7 +79,7 @@ class BillLayoutServiceTest {
         BillLayout row = new BillLayout();
         row.setBusinessId(businessId);
         row.setLayout(BillPreset.MINIMAL);
-        row.setOptions(new BillLayoutOptions(true, true, "GST extra on request"));
+        row.setOptions(BillLayoutOptions.standard(true, true, "GST extra on request"));
         when(layouts.findByBusinessId(businessId)).thenReturn(Optional.of(row));
         when(businesses.findById(businessId)).thenReturn(Optional.of(shop("https://logo", "logo-id")));
 
@@ -103,7 +103,7 @@ class BillLayoutServiceTest {
         when(layouts.findByBusinessId(businessId)).thenReturn(Optional.empty());
         when(businesses.findById(businessId)).thenReturn(Optional.of(shop(null, null)));
         UpsertBillLayoutRequest request = new UpsertBillLayoutRequest(BillPreset.BOLD,
-            new BillLayoutOptions(true, false, "Thanks!"), null, null);
+            BillLayoutOptions.standard(true, false, "Thanks!"), null, null);
 
         BillLayoutView view = service.upsert(owner, request);
 
@@ -170,7 +170,7 @@ class BillLayoutServiceTest {
         when(layouts.findByBusinessId(businessId)).thenReturn(Optional.empty());
         when(businesses.findById(businessId)).thenReturn(Optional.of(shop(null, null)));
         UpsertBillLayoutRequest request = new UpsertBillLayoutRequest(BillPreset.CLASSIC,
-            new BillLayoutOptions(false, false, "   "), null, null);
+            BillLayoutOptions.standard(false, false, "   "), null, null);
 
         assertThat(service.upsert(owner, request).options().footerNote()).isNull();
     }
@@ -180,7 +180,8 @@ class BillLayoutServiceTest {
         // The service's own render path, with a real renderer (mocks can't produce bytes).
         BillLayoutService real = new BillLayoutService(layouts, businesses, media,
             new PdfRenderer(), new BillPreviewCache());
-        assertThat(new String(real.preview(BillPreset.MINIMAL, true, true, "Thanks"),
+        assertThat(new String(real.preview(BillPreset.MINIMAL,
+                BillLayoutOptions.standard(true, true, "Thanks")),
             0, 5, StandardCharsets.ISO_8859_1)).isEqualTo("%PDF-");
     }
 
@@ -190,8 +191,9 @@ class BillLayoutServiceTest {
         BillLayoutService real = new BillLayoutService(layouts, businesses, media, renderer,
             new BillPreviewCache());
 
-        byte[] first = real.preview(BillPreset.MINIMAL, true, true, "Thanks");
-        byte[] second = real.preview(BillPreset.MINIMAL, true, true, "Thanks");
+        BillLayoutOptions options = BillLayoutOptions.standard(true, true, "Thanks");
+        byte[] first = real.preview(BillPreset.MINIMAL, options);
+        byte[] second = real.preview(BillPreset.MINIMAL, options);
 
         assertThat(second).isSameAs(first);
         assertThat(renderer.rendered).isEqualTo(1);
@@ -203,10 +205,27 @@ class BillLayoutServiceTest {
         BillLayoutService real = new BillLayoutService(layouts, businesses, media, renderer,
             new BillPreviewCache());
 
-        real.preview(BillPreset.MINIMAL, true, true, "Thanks");
-        real.preview(BillPreset.MINIMAL, true, false, "Thanks");
+        real.preview(BillPreset.MINIMAL, BillLayoutOptions.standard(true, true, "Thanks"));
+        real.preview(BillPreset.MINIMAL, BillLayoutOptions.standard(true, false, "Thanks"));
 
         assertThat(renderer.rendered).isEqualTo(2);
+    }
+
+    @Test
+    void previewCachesEquivalentOptionsRegardlessOfEnumNulls() {
+        CountingRenderer renderer = new CountingRenderer();
+        BillLayoutService real = new BillLayoutService(layouts, businesses, media, renderer,
+            new BillPreviewCache());
+
+        // Absent enums and their explicit defaults must be the same cache entry.
+        real.preview(BillPreset.CLASSIC, new BillLayoutOptions(true, false, "Thanks",
+            null, null, null, false, false, false, null, null));
+        real.preview(BillPreset.CLASSIC, new BillLayoutOptions(true, false, "Thanks",
+            BillLayoutOptions.Align.LEFT, BillLayoutOptions.Align.RIGHT,
+            BillLayoutOptions.Accent.NEUTRAL, false, false, false, null,
+            BillLayoutOptions.DateFormat.D_MMM_YYYY));
+
+        assertThat(renderer.rendered).isEqualTo(1);
     }
 
     /** Counts renders; a mock can't produce the %PDF- bytes the cached-path tests assert on. */

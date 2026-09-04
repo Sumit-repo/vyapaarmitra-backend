@@ -15,8 +15,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 /**
- * The Pro presets: valid XHTML that openhtmltopdf can actually render, the toggles they
- * add, and the preview bytes the web designer's iframe consumes.
+ * The Pro presets: valid XHTML that openhtmltopdf can actually render, the toggles and
+ * v2 design options they add, and the preview bytes the web designer consumes.
  */
 class BillPresetRenderTest {
 
@@ -31,7 +31,7 @@ class BillPresetRenderTest {
     @EnumSource(value = BillPreset.class, names = {"MINIMAL", "BOLD"})
     void proPresetsRenderToAValidPdf(BillPreset preset) {
         String html = BillPdfHtml.build(data(preset,
-            new BillLayoutOptions(true, true, "Thank you, visit again!")));
+            BillLayoutOptions.standard(true, true, "Thank you, visit again!")));
         // Every preset carries the same content — only the chrome changes.
         assertTrue(html.contains(">TAX INVOICE<"));
         assertTrue(html.contains("Sharma Kirana Store"));
@@ -48,7 +48,7 @@ class BillPresetRenderTest {
     @Test
     void upiQrCarriesThePayeeAmountAndCurrency() {
         String html = BillPdfHtml.build(data(BillPreset.MINIMAL,
-            new BillLayoutOptions(true, false, null)));
+            BillLayoutOptions.standard(true, false, null)));
         assertTrue(html.contains("<img class=\"qr-img\" src=\"data:image/png;base64,"));
         assertTrue(html.contains("Scan &amp; Pay " + rupees(
             BillSamples.bill(BillType.PAKKA).balanceDue())));
@@ -60,11 +60,12 @@ class BillPresetRenderTest {
     void upiQrIsSkippedWithoutAVpaOrWhenNothingIsDue() {
         // No VPA configured: no QR, no half-working payment instruction.
         BillPdfData noVpa = new BillPdfData(BillSamples.bill(BillType.PAKKA), "S", null,
-            null, null, true, BillPreset.MINIMAL, true, false, null);
+            null, null, true, BillPreset.MINIMAL, BillLayoutOptions.standard(true, false, null));
         assertFalse(BillPdfHtml.build(noVpa).contains("<img class=\"qr-img\""));
         // Paid in full: a QR for ₹0 is noise.
         BillPdfData paid = new BillPdfData(BillSamples.paid(BillType.KACCHA), "S", null,
-            "sharma@okaxis", "Sharma", true, BillPreset.MINIMAL, true, false, null);
+            "sharma@okaxis", "Sharma", true, BillPreset.MINIMAL,
+            BillLayoutOptions.standard(true, false, null));
         assertFalse(BillPdfHtml.build(paid).contains("<img class=\"qr-img\""));
         assertTrue(BillPdfHtml.build(paid).contains("Paid in full"));
     }
@@ -73,30 +74,146 @@ class BillPresetRenderTest {
     void logoRendersOnlyWhenRequested() {
         BillPdfData withLogo = new BillPdfData(BillSamples.bill(BillType.PAKKA), "S",
             "https://res.cloudinary.com/x/y.png", "sharma@okaxis", "Sharma", true,
-            BillPreset.BOLD, false, true, null);
+            BillPreset.BOLD, BillLayoutOptions.standard(false, true, null));
         assertTrue(BillPdfHtml.build(withLogo).contains("<img class=\"logo\""));
         BillPdfData hidden = new BillPdfData(BillSamples.bill(BillType.PAKKA), "S",
             "https://res.cloudinary.com/x/y.png", null, null, true,
-            BillPreset.BOLD, false, false, null);
+            BillPreset.BOLD, BillLayoutOptions.standard(false, false, null));
         assertFalse(BillPdfHtml.build(hidden).contains("class=\"logo\""));
     }
 
     @Test
     void footerNoteIsEscaped() {
         BillPdfData note = new BillPdfData(BillSamples.bill(BillType.PAKKA), "S", null,
-            null, null, true, BillPreset.MINIMAL, false, false, "<b>&</b>");
+            null, null, true, BillPreset.MINIMAL,
+            BillLayoutOptions.standard(false, false, "<b>&</b>"));
         assertTrue(BillPdfHtml.build(note).contains("&lt;b&gt;&amp;&lt;/b&gt;"));
         assertFalse(BillPdfHtml.build(note).contains("<b>"));
     }
 
     @Test
     void previewRendersTheSampleBillToPdfBytes() {
-        // Same call chain as GET /bill-layout/preview → the designer's iframe payload.
-        byte[] pdf = RENDERER.render(
-            BillPdfHtml.build(SampleBill.data(BillPreset.BOLD, true, true, "GST extra")));
+        // Same call chain as POST /bill-layout/preview → the designer's iframe payload.
+        byte[] pdf = RENDERER.render(BillPdfHtml.build(SampleBill.data(BillPreset.BOLD,
+            BillLayoutOptions.standard(true, true, "GST extra"))));
         assertEquals("%PDF-", new String(pdf, 0, 5, StandardCharsets.ISO_8859_1));
-        byte[] classic = RENDERER.render(
-            BillPdfHtml.build(SampleBill.data(BillPreset.CLASSIC, false, false, null)));
+        byte[] classic = RENDERER.render(BillPdfHtml.build(SampleBill.data(BillPreset.CLASSIC,
+            BillLayoutOptions.defaults())));
         assertEquals("%PDF-", new String(classic, 0, 5, StandardCharsets.ISO_8859_1));
+    }
+
+    /** v2 options — each change must be visible in the markup, not just accepted. */
+
+    @Test
+    void headingAlignOverrideIsAppendedOnlyWhenNotLeft() {
+        String left = BillPdfHtml.build(data(BillPreset.MINIMAL,
+            BillLayoutOptions.defaults()));
+        assertFalse(left.contains(".head-left, .band-left { text-align: center; }"));
+        String center = BillPdfHtml.build(data(BillPreset.MINIMAL,
+            new BillLayoutOptions(false, false, null, BillLayoutOptions.Align.CENTER,
+                null, null, false, false, false, null, null)));
+        assertTrue(center.contains(".head-left, .band-left { text-align: center; }"));
+        assertTrue(center.contains(".head .logo, .band .logo { margin-left: auto; margin-right: auto; }"));
+        byte[] pdf = RENDERER.render(center);
+        assertEquals("%PDF-", new String(pdf, 0, 5, StandardCharsets.ISO_8859_1));
+    }
+
+    @Test
+    void footerAlignOverrideIsAppendedOnlyWhenNotRight() {
+        String defaultNote = BillPdfHtml.build(data(BillPreset.MINIMAL,
+            BillLayoutOptions.standard(false, false, "Thanks")));
+        assertFalse(defaultNote.contains(".footer-note { text-align:"));
+        String leftNote = BillPdfHtml.build(data(BillPreset.MINIMAL,
+            new BillLayoutOptions(false, false, "Thanks", null,
+                BillLayoutOptions.Align.LEFT, null, false, false, false, null, null)));
+        assertTrue(leftNote.contains(".footer-note { text-align: left; }"));
+    }
+
+    @Test
+    void accentOverrideRecolorsTheRules() {
+        String neutral = BillPdfHtml.build(data(BillPreset.MINIMAL, BillLayoutOptions.defaults()));
+        assertFalse(neutral.contains("border-bottom-color: #015FAD"));
+        String blue = BillPdfHtml.build(data(BillPreset.MINIMAL,
+            new BillLayoutOptions(false, false, null, null, null,
+                BillLayoutOptions.Accent.BLUE, false, false, false, null, null)));
+        assertTrue(blue.contains(".head { border-bottom-color: #015FAD; }"));
+        assertTrue(blue.contains(".band { background-color: #015FAD; }"));
+        byte[] pdf = RENDERER.render(blue);
+        assertEquals("%PDF-", new String(pdf, 0, 5, StandardCharsets.ISO_8859_1));
+    }
+
+    @Test
+    void hideBalanceDropsTheBalanceBlock() {
+        String shown = BillPdfHtml.build(data(BillPreset.MINIMAL, BillLayoutOptions.defaults()));
+        assertTrue(shown.contains("Balance on khata:"));
+        String hidden = BillPdfHtml.build(data(BillPreset.MINIMAL,
+            new BillLayoutOptions(false, false, null, null, null, null,
+                false, true, false, null, null)));
+        assertFalse(hidden.contains("Balance on khata:"));
+        assertFalse(hidden.contains("Paid in full"));
+    }
+
+    @Test
+    void hidePhoneDropsOnlyThePhoneLine() {
+        String shown = BillPdfHtml.build(data(BillPreset.MINIMAL, BillLayoutOptions.defaults()));
+        assertTrue(shown.contains(BillSamples.bill(BillType.PAKKA).partyPhone()));
+        String hidden = BillPdfHtml.build(data(BillPreset.MINIMAL,
+            new BillLayoutOptions(false, false, null, null, null, null,
+                true, false, false, null, null)));
+        assertFalse(hidden.contains(BillSamples.bill(BillType.PAKKA).partyPhone()));
+        assertTrue(hidden.contains("Ramesh Kumar"));
+    }
+
+    @Test
+    void hideBrandDropsThePoweredByFooter() {
+        String shown = BillPdfHtml.build(data(BillPreset.MINIMAL, BillLayoutOptions.defaults()));
+        assertTrue(shown.contains("VyapaarMitra"));
+        String hidden = BillPdfHtml.build(data(BillPreset.MINIMAL,
+            new BillLayoutOptions(false, false, null, null, null, null,
+                false, false, true, null, null)));
+        assertFalse(hidden.contains("VyapaarMitra"));
+    }
+
+    @Test
+    void headingLabelReplacesTaxInvoiceOnPakkaOnly() {
+        String pakka = BillPdfHtml.build(data(BillPreset.MINIMAL,
+            new BillLayoutOptions(false, false, null, null, null, null,
+                false, false, false, "उधार खाता", null)));
+        assertTrue(pakka.contains(">उधार खाता<"));
+        assertFalse(pakka.contains(">TAX INVOICE<"));
+        // KACCHA must never inherit the custom label — it always prints INVOICE.
+        BillPdfData kaccha = BillPdfData.of(BillSamples.bill(BillType.KACCHA), "S", null,
+            null, null, BillPreset.MINIMAL,
+            new BillLayoutOptions(false, false, null, null, null, null,
+                false, false, false, "TAX INVOICE", null), true);
+        assertTrue(BillPdfHtml.build(kaccha).contains(">INVOICE<"));
+    }
+
+    @Test
+    void dateFormatVariantsPrintTheirPattern() {
+        String iso = BillPdfHtml.build(data(BillPreset.MINIMAL, BillLayoutOptions.defaults()));
+        assertTrue(iso.contains("3 Sep 2026"));
+        String numeric = BillPdfHtml.build(data(BillPreset.MINIMAL,
+            new BillLayoutOptions(false, false, null, null, null, null, false, false, false,
+                null, BillLayoutOptions.DateFormat.DD_MM_YYYY)));
+        assertTrue(numeric.contains("03-09-2026"));
+        String slashed = BillPdfHtml.build(data(BillPreset.MINIMAL,
+            new BillLayoutOptions(false, false, null, null, null, null, false, false, false,
+                null, BillLayoutOptions.DateFormat.DD_MM_YYYY_SLASH)));
+        assertTrue(slashed.contains("03/09/2026"));
+    }
+
+    @Test
+    void normalizedOptionsResolveAbsentEnumsToThePreV2Look() {
+        BillLayoutOptions o = new BillLayoutOptions(false, false, "  hi  ", null, null,
+            null, false, false, false, "  ", null).normalized();
+        assertEquals(BillLayoutOptions.Align.LEFT, o.headingAlign());
+        assertEquals(BillLayoutOptions.Align.RIGHT, o.footerAlign());
+        assertEquals(BillLayoutOptions.Accent.NEUTRAL, o.accent());
+        assertEquals(BillLayoutOptions.DateFormat.D_MMM_YYYY, o.dateFormat());
+        assertEquals("hi", o.footerNote());
+        assertEquals(null, o.headingLabel());
+        // Idempotent: normalising twice changes nothing.
+        assertEquals(o, o.normalized());
     }
 }

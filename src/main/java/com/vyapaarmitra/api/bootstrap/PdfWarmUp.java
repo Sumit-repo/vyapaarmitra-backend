@@ -1,5 +1,6 @@
 package com.vyapaarmitra.api.bootstrap;
 
+import com.vyapaarmitra.api.billlayout.BillLayoutOptions;
 import com.vyapaarmitra.api.billlayout.BillLayoutService;
 import com.vyapaarmitra.api.billlayout.BillPreset;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +30,8 @@ public class PdfWarmUp implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         try {
             long start = System.nanoTime();
-            billLayoutService.preview(BillPreset.CLASSIC, true, false, null);
+            billLayoutService.preview(BillPreset.CLASSIC,
+                BillLayoutOptions.standard(true, false, null));
             log.info("PDF warm-up complete in {} ms", (System.nanoTime() - start) / 1_000_000);
         } catch (Exception e) {
             // Never throw: a failed warm-up only means the first preview renders cold.

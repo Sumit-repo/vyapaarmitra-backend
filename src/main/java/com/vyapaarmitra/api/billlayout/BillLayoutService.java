@@ -62,7 +62,7 @@ public class BillLayoutService {
             created.setBusinessId(businessId);
             return created;
         });
-        BillLayoutOptions options = normalise(request.options());
+        BillLayoutOptions options = request.options().normalized();
         row.setLayout(request.layout());
         row.setOptions(options);
         layouts.save(row);
@@ -81,20 +81,20 @@ public class BillLayoutService {
 
     /**
      * Renders the synthetic sample bill in the requested design — no DB writes. Cached:
-     * the sample is deterministic per params, so repeat requests reuse the same bytes
+     * the sample is deterministic per options, so repeat requests reuse the same bytes
      * (see {@link BillPreviewCache} for the shared-key invariant). Uncacheable requests
      * (>500-char note) render straight through.
      */
-    public byte[] preview(BillPreset layout, boolean showUpiQr, boolean showLogo, String footerNote) {
-        String key = BillPreviewCache.keyOf(layout, showUpiQr, showLogo, footerNote);
+    public byte[] preview(BillPreset layout, BillLayoutOptions options) {
+        BillLayoutOptions o = options.normalized();
+        String key = BillPreviewCache.keyOf(layout, o);
         if (key != null) {
             byte[] cached = previewCache.get(key);
             if (cached != null) {
                 return cached;
             }
         }
-        byte[] pdf = pdfRenderer.render(
-            BillPdfHtml.build(SampleBill.data(layout, showUpiQr, showLogo, footerNote)));
+        byte[] pdf = pdfRenderer.render(BillPdfHtml.build(SampleBill.data(layout, o)));
         previewCache.put(key, pdf);
         return pdf;
     }
@@ -105,14 +105,6 @@ public class BillLayoutService {
 
     private static BillLayoutOptions optionsOf(BillLayout row) {
         return row == null ? BillLayoutOptions.defaults() : row.getOptions();
-    }
-
-    /** Trim the note so a whitespace-only footer doesn't read as a Pro toggle. */
-    private static BillLayoutOptions normalise(BillLayoutOptions options) {
-        String note = options.footerNote();
-        String trimmed = note == null ? null : note.trim();
-        return new BillLayoutOptions(options.showUpiQr(), options.showLogo(),
-            trimmed == null || trimmed.isBlank() ? null : trimmed);
     }
 
     /**

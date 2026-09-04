@@ -4,13 +4,14 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -173,10 +174,11 @@ class BillLayoutControllerTest {
     @Test
     void previewServesPdfBytes() throws Exception {
         byte[] pdf = "%PDF-1.4 preview".getBytes();
-        when(billLayoutService.preview(any(), anyBoolean(), anyBoolean(), any())).thenReturn(pdf);
+        when(billLayoutService.preview(any(), any())).thenReturn(pdf);
 
-        asOwner(get("/api/v1/bill-layout/preview")
-                .param("layout", "MINIMAL").param("showUpiQr", "true"))
+        asOwner(post("/api/v1/bill-layout/preview")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body("MINIMAL", DEFAULT_OPTIONS)))
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_PDF))
             .andExpect(header().string("Content-Disposition", containsString("inline")))
@@ -185,14 +187,49 @@ class BillLayoutControllerTest {
     }
 
     @Test
+    void previewDefaultsMissingOptions() throws Exception {
+        byte[] pdf = "%PDF-1.4 preview".getBytes();
+        when(billLayoutService.preview(any(), any())).thenReturn(pdf);
+
+        asOwner(post("/api/v1/bill-layout/preview")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"layout\":\"CLASSIC\"}"))
+            .andExpect(status().isOk());
+
+        verify(billLayoutService).preview(eq(BillPreset.CLASSIC),
+            eq(BillLayoutOptions.defaults()));
+    }
+
+    @Test
     void previewIsGatedForProDesigns() throws Exception {
         doThrow(new PlanLimitException("layout", "Bill design needs Pro."))
             .when(planGuard).requireFeature(any(), any(), anyString());
 
-        asOwner(get("/api/v1/bill-layout/preview")
-                .param("layout", "BOLD").param("showLogo", "true"))
+        asOwner(post("/api/v1/bill-layout/preview")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body("BOLD", "{\"showLogo\":true}")))
             .andExpect(status().isPaymentRequired())
             .andExpect(jsonPath("$.error.reason").value("layout"));
-        verify(billLayoutService, never()).preview(any(), anyBoolean(), anyBoolean(), any());
+        verify(billLayoutService, never()).preview(any(), any());
+    }
+
+    @Test
+    void previewIsGatedForV2OptionsEvenOnClassic() throws Exception {
+        doThrow(new PlanLimitException("layout", "Bill design needs Pro."))
+            .when(planGuard).requireFeature(any(), any(), anyString());
+
+        // An accent colour alone is a Pro request — no preset change needed.
+        asOwner(post("/api/v1/bill-layout/preview")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body("CLASSIC", "{\"accent\":\"BLUE\"}")))
+            .andExpect(status().isPaymentRequired())
+            .andExpect(jsonPath("$.error.reason").value("layout"));
+
+        asOwner(post("/api/v1/bill-layout/preview")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body("CLASSIC", "{\"headingAlign\":\"CENTER\"}")))
+            .andExpect(status().isPaymentRequired());
+
+        verify(billLayoutService, never()).preview(any(), any());
     }
 }
