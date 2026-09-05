@@ -102,6 +102,42 @@ class BillPresetRenderTest {
         assertEquals("%PDF-", new String(classic, 0, 5, StandardCharsets.ISO_8859_1));
     }
 
+    /** The pay band: "how much is due" and "how to clear it" sit in ONE row when both render. */
+
+    @Test
+    void payBandCombinesBalanceAndQrInEveryPreset() {
+        for (BillPreset preset : BillPreset.values()) {
+            String html = BillPdfHtml.build(data(preset,
+                BillLayoutOptions.standard(true, false, null)));
+            assertTrue(html.contains("<table class=\"pay\"><tr><td class=\"pay-due\"><div class=\"balance due\">"),
+                preset + ": the balance should be the pay band's left cell");
+            assertTrue(html.contains("<td class=\"pay-qr\"><table class=\"qr\">"),
+                preset + ": the QR should be the pay band's right cell");
+            assertTrue(html.contains(".pay { width: 100%"),
+                preset + ": pay band styles should be emitted with the markup");
+            byte[] pdf = RENDERER.render(html);
+            assertEquals("%PDF-", new String(pdf, 0, 5, StandardCharsets.ISO_8859_1),
+                preset + ": pay band must still render to a PDF");
+        }
+    }
+
+    @Test
+    void payBandFallsBackToSeparateBlocksWhenOnlyOneRenders() {
+        // Balance hidden → QR alone, no band markup or styles.
+        BillLayoutOptions hideBalance = new BillLayoutOptions(true, false, null,
+            null, null, null, false, true, false, null, null);
+        String qrSolo = BillPdfHtml.build(data(BillPreset.MINIMAL, hideBalance));
+        assertFalse(qrSolo.contains("<table class=\"pay\">"));
+        assertTrue(qrSolo.contains("Scan &amp; Pay"));
+        assertFalse(qrSolo.contains(".pay { width: 100%"));
+        // No VPA → balance alone, no band (this is also the CLASSIC golden path).
+        BillPdfData noVpa = new BillPdfData(BillSamples.bill(BillType.PAKKA), "S", null,
+            null, null, true, BillPreset.CLASSIC, BillLayoutOptions.standard(true, false, null));
+        String balanceSolo = BillPdfHtml.build(noVpa);
+        assertFalse(balanceSolo.contains("<table class=\"pay\">"));
+        assertTrue(balanceSolo.contains("Balance on khata:"));
+    }
+
     /** v2 options — each change must be visible in the markup, not just accepted. */
 
     @Test

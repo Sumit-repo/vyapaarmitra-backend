@@ -12,6 +12,8 @@ import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.itemsHead;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.itemsRows;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.logoImg;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.notesBlock;
+import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.payBandCss;
+import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.payBlock;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.qrBlock;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.sellerGstinBlock;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.supplyBlock;
@@ -34,10 +36,12 @@ public final class MinimalBillLayout {
     public static String build(BillPdfData d) {
         InvoiceResponse bill = d.bill();
         boolean pakka = bill.billType() == BillType.PAKKA;
+        String balance = balanceBlock(bill, d.options());
+        String qr = qrBlock(d);
 
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
             + "<html><head><meta charset=\"utf-8\" />"
-            + "<style>" + css() + designOverrides(d.options()) + "</style></head><body>"
+            + "<style>" + css() + payBandCss(balance, qr) + designOverrides(d.options()) + "</style></head><body>"
             + "<table class=\"head\"><tr>"
             + "<td class=\"head-left\">" + logoImg(d)
             + "<div class=\"shop-name\">" + esc(d.shopName()) + "</div>"
@@ -49,7 +53,7 @@ public final class MinimalBillLayout {
             + "<td class=\"supply\">" + supplyBlock(bill) + "</td></tr></table>"
             + "<table class=\"items\">" + itemsHead(pakka) + "<tbody>" + itemsRows(bill) + "</tbody></table>"
             + "<table class=\"totals\">" + totalsRows(bill) + "</table>"
-            + balanceBlock(bill, d.options()) + qrBlock(d) + notesBlock(bill)
+            + payBlock(balance, qr) + notesBlock(bill)
             + footerNoteBlock(d.options().footerNote()) + brandBlock(d.branding(), d.options())
             + "</body></html>";
     }

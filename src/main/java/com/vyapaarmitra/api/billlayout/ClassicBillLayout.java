@@ -15,6 +15,8 @@ import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.itemsHead;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.itemsRows;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.logoImg;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.notesBlock;
+import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.payBandCss;
+import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.payBlock;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.qrBlock;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.sellerGstinBlock;
 import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.supplyBlock;
@@ -24,7 +26,10 @@ import static com.vyapaarmitra.api.billlayout.BillLayoutPartials.totalsRows;
  * The original bill design — the free default every existing shop already prints. Its
  * markup is pinned byte-for-byte by {@code BillPdfGoldenTest}, so structural edits here
  * change every historical bill PDF: treat this class as frozen. The logo / UPI QR / footer
- * note are the only additions, and each renders as an empty string when off.
+ * note are the only additions, and each renders as an empty string when off. One
+ * sanctioned composition change (2026-09): balance + QR emit as a single .pay band when
+ * BOTH render ({@code payBlock}); with no QR the output stays byte-identical, so the
+ * goldens stand.
  */
 public final class ClassicBillLayout {
 
@@ -51,7 +56,7 @@ public final class ClassicBillLayout {
 
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
             + "<html><head><meta charset=\"utf-8\" />"
-            + "<style>" + css() + designCss(logo, qr, footnote) + designOverrides(d.options()) + "</style></head><body>"
+            + "<style>" + css() + designCss(logo, qr, footnote, balance) + designOverrides(d.options()) + "</style></head><body>"
             + "<table class=\"head\"><tr>"
             + "<td class=\"head-left\">" + logo + "<div class=\"shop-name\">" + esc(d.shopName()) + "</div>" + sellerGstin + "</td>"
             + "<td class=\"head-right\"><div class=\"h\">" + heading + "</div>"
@@ -61,7 +66,7 @@ public final class ClassicBillLayout {
             + "<td class=\"supply\">" + supply + "</td></tr></table>"
             + "<table class=\"items\">" + itemsHead(pakka) + "<tbody>" + rows + "</tbody></table>"
             + "<table class=\"totals\">" + totals + "</table>"
-            + balance + qr + notes + footnote + brand
+            + payBlock(balance, qr) + notes + footnote + brand
             + "</body></html>";
     }
 
@@ -96,7 +101,7 @@ public final class ClassicBillLayout {
      * Bill-design additions, appended only for the toggles that actually rendered so a
      * plain CLASSIC bill keeps its exact pre-bill-design markup (BillPdfGoldenTest).
      */
-    private static String designCss(String logo, String qr, String footnote) {
+    private static String designCss(String logo, String qr, String footnote, String balance) {
         StringBuilder css = new StringBuilder();
         if (!logo.isEmpty()) {
             // Fixed square: openhtmltopdf has no object-fit, and height:auto is unreliable.
@@ -107,6 +112,7 @@ public final class ClassicBillLayout {
                 .append(".qr-img { width: 96px; height: 96px; }")
                 .append(".qr-label { padding-left: 10px; vertical-align: middle; font-weight: bold; font-size: 12px; }");
         }
+        css.append(payBandCss(balance, qr));
         if (!footnote.isEmpty()) {
             css.append(".footer-note { margin-top: 14px; text-align: right; color: #444; font-size: 11px; }");
         }

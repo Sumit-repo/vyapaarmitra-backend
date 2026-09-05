@@ -162,6 +162,33 @@ final class BillLayoutPartials {
             + "</tr></table>";
     }
 
+    /**
+     * Balance line + UPI QR as one full-width pay band when BOTH render — "how much you
+     * owe" sits next to the way to clear it, instead of two stacked blocks the customer's
+     * eye has to connect. When only one renders, this returns the original blocks byte
+     * for byte: that's what keeps the CLASSIC golden green (its fixture has no VPA, so
+     * no QR, so no band).
+     */
+    static String payBlock(String balance, String qr) {
+        if (qr.isEmpty() || balance.isEmpty()) {
+            return balance + qr;
+        }
+        return "<table class=\"pay\"><tr><td class=\"pay-due\">" + balance
+            + "</td><td class=\"pay-qr\">" + qr + "</td></tr></table>";
+    }
+
+    /** Band chrome, emitted only when the band rendered (byte-identical otherwise). */
+    static String payBandCss(String balance, String qr) {
+        if (qr.isEmpty() || balance.isEmpty()) {
+            return "";
+        }
+        return ".pay { width: 100%; margin-top: 12px; border-collapse: collapse; border: 1px solid #e6e6e6; }"
+            + ".pay td { padding: 10px 12px; vertical-align: middle; }"
+            + ".pay .balance { margin-top: 0; text-align: left; }"
+            + ".pay-qr { text-align: right; width: 1%; }"
+            + ".pay .qr { margin-top: 0; }";
+    }
+
     static String date(InvoiceResponse bill, BillLayoutOptions o) {
         if (bill.createdAt() == null) {
             return "";
@@ -194,7 +221,8 @@ final class BillLayoutPartials {
             css.append(".head { border-bottom-color: ").append(accent).append("; }")
                 .append(".band { background-color: ").append(accent).append("; }")
                 .append(".totals .grand td { border-top-color: ").append(accent).append("; }")
-                .append(".totals { border-color: ").append(accent).append("; }");
+                .append(".totals { border-color: ").append(accent).append("; }")
+                .append(".pay { border-color: ").append(accent).append("; }");
         }
         return css.toString();
     }
