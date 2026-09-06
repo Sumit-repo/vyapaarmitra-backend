@@ -28,6 +28,8 @@ class OkCreditStatementParserTest {
 
     private static final String CUSTOMER_SAMPLE = "OkCredit_CustomerAccountStatement_03 Sept 1926_03 Sept 2026.pdf";
     private static final String SUPPLIER_SAMPLE = "OkCredit_SupplierAccountStatement_03 Sept 1926_03 Sept 2026.pdf";
+    /** Newer OkCredit build: no title line, no name column, amount columns flipped. */
+    private static final String NEW_CUSTOMER_SAMPLE = "OkCredit_CustomerStatement_06 Sept 1926_06 Sept 2026.pdf";
 
     private static byte[] resource(String name) throws IOException {
         try (InputStream in = OkCreditStatementParserTest.class.getResourceAsStream("/" + name)) {
@@ -69,6 +71,39 @@ class OkCreditStatementParserTest {
                 assertThat(entry.direction()).isEqualTo(EntryType.CREDIT);
                 assertThat(entry.amount()).isEqualByComparingTo("2");
                 assertThat(entry.note()).isEqualTo("Items on credit");
+            });
+    }
+
+    @Test
+    void newCustomerStatementParsesWithoutTitleOrNameColumn() throws IOException {
+        ParsedStatement statement = parser.parse(resource(NEW_CUSTOMER_SAMPLE));
+
+        assertThat(statement.kind()).isEqualTo(ImportKind.CUSTOMER);
+        assertThat(statement.dateFrom()).isEqualTo(LocalDate.of(1926, 9, 6));
+        assertThat(statement.dateTo()).isEqualTo(LocalDate.of(2026, 9, 6));
+        assertThat(statement.creditCount()).isEqualTo(1);
+        assertThat(statement.paymentCount()).isEqualTo(1);
+        assertThat(statement.netBalance()).isEqualByComparingTo("1");
+
+        // The contact comes from the page header, not a table column.
+        assertThat(statement.contacts()).hasSize(1);
+        ParsedContact contact = statement.contacts().get(0);
+        assertThat(contact.name()).isEqualTo("Demo Customer");
+        assertThat(contact.phone()).isEqualTo("9122244192");
+        assertThat(contact.entries()).hasSize(2);
+        assertThat(contact.entries().get(0))
+            .satisfies(entry -> {
+                assertThat(entry.date()).isEqualTo(LocalDate.of(2026, 8, 9));
+                assertThat(entry.direction()).isEqualTo(EntryType.CREDIT);
+                assertThat(entry.amount()).isEqualByComparingTo("2");
+                assertThat(entry.note()).isEqualTo("Items on credit");
+            });
+        assertThat(contact.entries().get(1))
+            .satisfies(entry -> {
+                assertThat(entry.date()).isEqualTo(LocalDate.of(2026, 8, 9));
+                assertThat(entry.direction()).isEqualTo(EntryType.PAYMENT);
+                assertThat(entry.amount()).isEqualByComparingTo("1");
+                assertThat(entry.note()).isEqualTo("Cash paid");
             });
     }
 

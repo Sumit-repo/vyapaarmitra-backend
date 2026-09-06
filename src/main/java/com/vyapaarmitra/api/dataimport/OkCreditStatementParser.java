@@ -56,8 +56,12 @@ public class OkCreditStatementParser {
     private static final Pattern ROW_DATE = Pattern.compile(
         "^\\s*(\\d{1,2}\\s+[A-Za-z]{3,9}\\.?\\s+\\d{4})\\b");
     private static final Pattern DATE_RANGE = Pattern.compile(
-        "^\\s*(\\d{1,2}\\s+[A-Za-z]{3,9}\\.?\\s+\\d{4})\\s*[-\\u2013\\u2014]\\s*"
+        "^\\s*(?:.*\\|)?\\s*(\\d{1,2}\\s+[A-Za-z]{3,9}\\.?\\s+\\d{4})\\s*[-\\u2013\\u2014]\\s*"
             + "(\\d{1,2}\\s+[A-Za-z]{3,9}\\.?\\s+\\d{4})\\s*$");
+    /** Page header of the newer per-contact statement: "Customer: <name> (phone)". */
+    private static final Pattern CONTACT_HEADER = Pattern.compile(
+        "^\\s*(Customer|Supplier)\\s*:\\s*(.+?)\\s*\\(([+\\d?\\s\\-()]{6,})\\)\\s*$",
+        Pattern.CASE_INSENSITIVE);
     private static final Pattern AMOUNT = Pattern.compile(
         // The rupee glyph extracts as U+20B9 on most OkCredit PDFs but degrades to "?"
         // on some CMaps — accept either, or no prefix at all.
@@ -135,7 +139,14 @@ public class OkCreditStatementParser {
         }
 
         float notesLower() {
-            return notes != null && name != null ? midpoint(name, notes) : -Float.MAX_VALUE;
+            if (notes == null) {
+                return -Float.MAX_VALUE;
+            }
+            if (name != null) {
+                return midpoint(name, notes);
+            }
+            // No name column (per-contact statement): notes start after the date column.
+            return date != null ? midpoint(date, notes) : -Float.MAX_VALUE;
         }
 
         float notesUpper() {
@@ -153,11 +164,18 @@ public class OkCreditStatementParser {
             return midpoint(credit, payment);
         }
 
-        float creditLower() {
-            if (notes != null && credit != null) {
-                return midpoint(notes, credit);
+        /** Newer statements flip the two amount columns ("Payment … Credit"); true = old layout. */
+        boolean creditIsLeft() {
+            return credit != null && payment != null && credit < payment;
+        }
+
+        /** Lower bound of whichever amount column sits left of the credit/payment boundary. */
+        float amountLeftLower() {
+            Float left = creditIsLeft() ? credit : payment;
+            if (notes != null && left != null) {
+                return midpoint(notes, left);
             }
-            return credit != null ? credit - 40.0f : -Float.MAX_VALUE;
+            return left != null ? left - 40.0f : -Float.MAX_VALUE;
         }
     }
 
@@ -187,6 +205,8 @@ public class OkCreditStatementParser {
         Row current = null;
         Map<String, Row> rows = new LinkedHashMap<>();
         boolean sawHeader = false;
+        String headerName = null;
+        String headerPhone = null;
 
         for (Line line : lines) {
             // The statement's own header declares the columns; re-detected on each page.
@@ -208,13 +228,24 @@ public class OkCreditStatementParser {
                 }
             }
 
+            // Newer statements name the contact in the page header, not the table.
+            if (headerName == null) {
+                Matcher contact = CONTACT_HEADER.matcher(line.text());
+                if (contact.matches()) {
+                    headerName = contact.group(2).trim();
+                    String digits = contact.group(3).replaceAll("[^+\\d]", "");
+                    headerPhone = digits.length() >= 6 ? digits : null;
+                    continue;
+                }
+            }
+
             if (anchors == null) {
                 continue; // nothing above the table header can be a transaction
             }
 
             Matcher date = ROW_DATE.matcher(line.text());
             if (date.find()) {
-                current = readRow(line, date.group(1), anchors, rows, warnings);
+                current = readRow(line, date.group(1), anchors, headerName, headerPhone, rows, warnings);
                 continue;
             }
 
@@ -333,6 +364,14 @@ public class OkCreditStatementParser {
             if (squashed.contains("SUPPLIERACCOUNTSTATEMENT")) {
                 return ImportKind.SUPPLIER;
             }
+            // Newer OkCredit builds dropped the "… Account Statement" title line; the
+            // per-contact header ("Customer: <name> (phone)") is now the only kind marker.
+            if (squashed.startsWith("CUSTOMER:")) {
+                return ImportKind.CUSTOMER;
+            }
+            if (squashed.startsWith("SUPPLIER:")) {
+                return ImportKind.SUPPLIER;
+            }
         }
         return null;
     }
@@ -348,7 +387,9 @@ public class OkCreditStatementParser {
         Float credit = null;
         Float payment = null;
         for (Chunk chunk : line.chunks()) {
-            String label = chunk.text().trim().toUpperCase(Locale.ROOT).replaceAll("\\s+", " ");
+            // Newer statements print the running count in the header ("Payment(1)").
+            String label = chunk.text().trim().toUpperCase(Locale.ROOT).replaceAll("\\s+", " ")
+                .replaceFirst("\\(\\d+\\)$", "").trim();
             switch (label) {
                 case "DATE" -> {
                     hasDate = true;
@@ -394,23 +435,42 @@ public class OkCreditStatementParser {
         }
     }
 
-    private Row readRow(Line line, String dateText, Anchors anchors, Map<String, Row> rows,
-                        List<String> warnings) {
+    private Row readRow(Line line, String dateText, Anchors anchors, String headerName,
+                        String headerPhone, Map<String, Row> rows, List<String> warnings) {
         LocalDate date = parseDate(dateText);
         if (date == null) {
             return current(rows); // unreadable date: keep the previous row for phone lines
         }
 
-        String name = textBetween(line, anchors.nameLower(), anchors.nameUpper());
-        if (name == null) {
-            warnings.add("Transaction on " + dateText + " had no readable contact name and was skipped.");
-            return current(rows);
+        String name;
+        String phone = null;
+        if (anchors.name() == null) {
+            // Newer per-contact statement: the table has no name column — the page header
+            // ("Customer: <name> (phone)") is the only place the contact is named.
+            if (headerName == null) {
+                warnings.add("Transaction on " + dateText + " had no readable contact name and was skipped.");
+                return current(rows);
+            }
+            name = headerName;
+            phone = headerPhone;
+        } else {
+            name = textBetween(line, anchors.nameLower(), anchors.nameUpper());
+            if (name == null) {
+                warnings.add("Transaction on " + dateText + " had no readable contact name and was skipped.");
+                return current(rows);
+            }
         }
 
         Row row = new Row(date, name, line.y());
+        row.phone = phone;
         row.note = textBetween(line, anchors.notesLower(), anchors.notesUpper());
-        row.credit = amountInColumn(line, anchors.creditLower(), anchors.creditPaymentBoundary());
-        row.payment = amountInColumn(line, anchors.creditPaymentBoundary(), Float.MAX_VALUE);
+        boolean creditLeft = anchors.creditIsLeft();
+        row.credit = creditLeft
+            ? amountInColumn(line, anchors.amountLeftLower(), anchors.creditPaymentBoundary())
+            : amountInColumn(line, anchors.creditPaymentBoundary(), Float.MAX_VALUE);
+        row.payment = creditLeft
+            ? amountInColumn(line, anchors.creditPaymentBoundary(), Float.MAX_VALUE)
+            : amountInColumn(line, anchors.amountLeftLower(), anchors.creditPaymentBoundary());
 
         if (row.credit == null && row.payment == null) {
             warnings.add("Transaction on " + dateText + " for " + name + " had no amount and was skipped.");
