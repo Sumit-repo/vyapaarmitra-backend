@@ -19,12 +19,14 @@ import com.vyapaarmitra.api.template.TemplateDtos.RenderResponse;
 import com.vyapaarmitra.api.template.TemplateDtos.TemplateResponse;
 import com.vyapaarmitra.api.template.TemplateDtos.UpdateTemplateRequest;
 import java.math.BigDecimal;
+import java.text.NumberFormat;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -37,6 +39,12 @@ public class TemplateService {
 
     private static final Logger log = LoggerFactory.getLogger(TemplateService.class);
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+    /**
+     * The seeding-default branch name (BusinessController.DEFAULT_BRANCH_NAME — kept local
+     * to avoid importing a controller constant into the template package). A branch with
+     * this name is the auto-created one, not something the owner typed.
+     */
+    private static final String DEFAULT_BRANCH_NAME = "Main Branch";
 
     private final MessageTemplateRepository templateRepository;
     private final BranchRepository branchRepository;
@@ -180,14 +188,24 @@ public class TemplateService {
         if (startDate != null) {
             putWindowVariables(variables, customer, startDate, endDate);
         }
+        // The shop's own name — the default signature for customer-facing reminders.
+        String businessName = businessRepository.findById(customer.getBusinessId())
+            .map(Business::getName)
+            .orElse(null);
+        if (businessName != null) {
+            variables.put("business_name", businessName);
+        }
+        // branch_name: for a shop that never renamed its auto-created branch, "Main Branch"
+        // reads like a bank notice — sign with the shop name instead. Older/custom templates
+        // that still say {{branch_name}} therefore render the same signature the client
+        // preview shows. A branch the owner actually named keeps its real name.
         branchRepository.findById(customer.getBranchId())
             .map(Branch::getName)
+            .filter(name -> !DEFAULT_BRANCH_NAME.equals(name))
             .ifPresent(name -> variables.put("branch_name", name));
-        // The shop's own name — the default signature for customer-facing reminders
-        // (branch_name says "Main Branch", which reads like a bank, not a shop).
-        businessRepository.findById(customer.getBusinessId())
-            .map(Business::getName)
-            .ifPresent(name -> variables.put("business_name", name));
+        if (!variables.containsKey("branch_name") && businessName != null) {
+            variables.put("branch_name", businessName);
+        }
         return variables;
     }
 
@@ -216,7 +234,9 @@ public class TemplateService {
     }
 
     private String formatAmount(BigDecimal amount) {
-        return "₹" + amount.stripTrailingZeros().toPlainString();
+        // Indian digit grouping ("₹18,000", "₹1,31,224") — must match the client-side
+        // rupees() formatting, or the delivered message reads differently from the preview.
+        return "₹" + NumberFormat.getNumberInstance(new Locale("en", "IN")).format(amount);
     }
 
     private MessageTemplate loadOwned(AuthUser authUser, UUID templateId) {
