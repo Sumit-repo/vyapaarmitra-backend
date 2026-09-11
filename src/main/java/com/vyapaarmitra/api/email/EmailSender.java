@@ -1,6 +1,7 @@
 package com.vyapaarmitra.api.email;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.vyapaarmitra.api.common.ApiException;
 import com.vyapaarmitra.api.config.AppProperties;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -16,6 +17,8 @@ import org.springframework.stereotype.Service;
  * extra Maven dependency, keeping the backend cloud-portable. When no API key is
  * configured the code path degrades to logging the message body, so local/dev
  * environments work without a provider (the one-time code shows up in the logs).
+ * Provider failures throw {@link ApiException} (502 EMAIL_DELIVERY_FAILED), so clients
+ * get a retryable, human-readable error instead of an unhandled 500.
  */
 @Slf4j
 @Service
@@ -62,14 +65,17 @@ public class EmailSender {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
                 log.error("[email] Resend returned {} for to={}: {}", response.statusCode(), to, response.body());
-                throw new IllegalStateException("Email delivery failed");
+                // 502 (not 500) so clients see a retryable provider failure, not "something went wrong".
+                throw ApiException.upstream("EMAIL_DELIVERY_FAILED",
+                    "We couldn't send the email right now. Please try again in a moment.");
             }
         } catch (java.io.IOException | InterruptedException e) {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
             log.error("[email] Failed to send to {}", to, e);
-            throw new IllegalStateException("Email delivery failed", e);
+            throw ApiException.upstream("EMAIL_DELIVERY_FAILED",
+                "We couldn't send the email right now. Please try again in a moment.");
         }
     }
 }

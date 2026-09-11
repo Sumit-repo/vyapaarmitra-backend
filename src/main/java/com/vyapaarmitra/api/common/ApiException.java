@@ -37,6 +37,11 @@ public class ApiException extends RuntimeException {
         return new ApiException(HttpStatus.UNPROCESSABLE_CONTENT, code, message);
     }
 
+    /** An upstream dependency (e.g. the email provider) failed — retryable by the caller. */
+    public static ApiException upstream(String code, String message) {
+        return new ApiException(HttpStatus.BAD_GATEWAY, code, message);
+    }
+
     public HttpStatus getStatus() {
         return status;
     }
